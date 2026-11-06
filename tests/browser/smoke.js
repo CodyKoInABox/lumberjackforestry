@@ -1102,6 +1102,66 @@ async function scenarioTablet(browser) {
   await context.close();
 }
 
+async function scenarioBiodiversity(browser) {
+  const bioSeed = (overrides) => seedBase(Object.assign({ tutorial: 99, zone: 0, bio: { sapling: 50, pine: 20 } }, overrides || {}));
+
+  const { context, page } = await newPage(browser, { seed: bioSeed({ replants: 1 }), label: "bio-meter" });
+  await sleep(300);
+  await page.click("#tab-replant");
+  await sleep(300);
+  const rows = await page.$$eval("#bio-list .bio-row", (n) => n.map((r) => ({ name: r.querySelector(".bio-name").textContent, value: r.querySelector(".bio-value").textContent })));
+  check("the meter lists every zone", rows.length === 6, "rows=" + rows.length);
+  check("the meter shows the zone's score", rows[0].name === "Sapling Hill" && rows[0].value === "50 / 100", JSON.stringify(rows[0]));
+  check("the meter marks the current zone", (await page.$$eval("#bio-list .bio-row.here", (n) => n.length)) === 1);
+  await ensureScreenshot(page, "biodiversity-meter.png");
+  await context.close();
+
+  const ratio = await (async () => {
+    const { context: rc, page: rp } = await newPage(browser, { seed: bioSeed({}), label: "bio-ratio" });
+    await sleep(200);
+    const r = await rp.evaluate(() => {
+      const mk = (bio) =>
+        LJ.Engine.stats(LJ.Engine.normalize({ v: 1, zone: 0, bio, machines: { crew: 10 }, runUnlocked: { crew: true } }, Date.now())).machineMult;
+      return mk({ sapling: 100 }) / mk({});
+    });
+    await rc.close();
+    return r;
+  })();
+  check("a full meter in this zone adds 50% to machine output", Math.abs(ratio - 1.5) < 1e-9, "ratio=" + ratio);
+
+  const { context: rc2, page: rp2 } = await newPage(browser, {
+    seed: bioSeed({ runTimber: 1e7, lifetimeTimber: 1e7, bio: {} }),
+    label: "bio-replant"
+  });
+  await sleep(300);
+  await rp2.click("#tab-replant");
+  await rp2.click("#rp-btn");
+  await rp2.click("#modal-root .modal-foot .btn.primary");
+  const replanted = await waitSave(rp2, (s) => s.replants === 1, 6000);
+  check("a replant adds biodiversity in the zone it was done in", !!replanted && replanted.bio.taiga === 15, replanted ? JSON.stringify(replanted.bio) : "no save");
+  await rc2.close();
+
+  const { context: fc, page: fp } = await newPage(browser, {
+    seed: bioSeed({ tool: 0, bio: { sapling: 10 } }), label: "bio-fell"
+  });
+  await sleep(300);
+  await chop(fp, 40);
+  const felled = await waitSave(fp, (s) => s.trees >= 2, 8000);
+  check("felling trees costs a little biodiversity", !!felled && felled.bio.sapling < 10 && felled.bio.sapling > 0, felled ? JSON.stringify(felled.bio) + " trees=" + felled.trees : "no save");
+  await fc.close();
+
+  const { context: mc, page: mp } = await newPage(browser, {
+    seed: bioSeed({ replants: 1 }), viewport: { width: 360, height: 740 }, touch: true, label: "bio-mobile"
+  });
+  await sleep(300);
+  await mp.tap("#tab-replant");
+  await sleep(300);
+  const overflow = await mp.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const tracks = await mp.$$eval("#bio-list .bio-track", (n) => n.map((t) => t.getBoundingClientRect().width));
+  check("360px: biodiversity meter fits with no horizontal overflow", overflow <= 1 && tracks.every((w) => w > 20), "overflow=" + overflow + " tracks=" + tracks.map(Math.round).join(","));
+  await mc.close();
+}
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: CHROME || undefined,
@@ -1124,7 +1184,8 @@ async function scenarioTablet(browser) {
     ["production-mobile", scenarioProductionMobile],
     ["sell-floor", scenarioSellFloor],
     ["auto-production", scenarioAutoProduction],
-    ["tablet", scenarioTablet]
+    ["tablet", scenarioTablet],
+    ["biodiversity", scenarioBiodiversity]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
   for (const [name, fn] of suites) {
