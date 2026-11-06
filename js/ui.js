@@ -595,11 +595,11 @@ LJ.UI = (function () {
     if (opts.text) body.append(create("div", "toast-text", opts.text));
     t.appendChild(body);
     box.appendChild(t);
-    while (box.children.length > 5) box.firstElementChild.remove();
+    while (box.children.length > 3) box.firstElementChild.remove();
     setTimeout(() => {
       t.classList.add("out");
       setTimeout(() => t.remove(), 400);
-    }, 3800);
+    }, 3200);
   }
 
   function popText(anchor, text) {
