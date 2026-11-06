@@ -157,6 +157,7 @@ function simulate(L, profile, seed) {
     }
   }
 
+  const payouts = [];
   function step(sec) {
     const st = E.stats(s);
     clickAcc += profile.cps * sec;
@@ -164,7 +165,11 @@ function simulate(L, profile, seed) {
     clickAcc -= clicks;
     for (let i = 0; i < clicks; i++) E.hit(s, st, false);
     E.tick(s, sec);
-    E.drain();
+    for (const ev of E.drain()) {
+      if (ev.type !== "contract") continue;
+      const tpl = D.contractTemplates.find((x) => x.title === ev.title);
+      payouts.push({ zone: s.zone, kind: tpl ? tpl.kind : "?", cash: ev.cash, perMin: st.total * st.price * 60 });
+    }
     t += sec;
     act += sec;
   }
@@ -220,7 +225,7 @@ function simulate(L, profile, seed) {
   checkMilestones();
   decide();
   checkMilestones();
-  return { ms, msA, timeline };
+  return { ms, msA, timeline, payouts, cashEarned: s.cashEarned };
 }
 
 function median(xs) {
@@ -249,9 +254,11 @@ function main() {
     "full"
   ];
   const out = {};
+  const runsByProfile = {};
   for (const [pk, p] of Object.entries(PROFILES)) {
     const runs = [];
     for (let seed = 1; seed <= SEEDS; seed++) runs.push(simulate(L, p, seed * 7919 + 17));
+    runsByProfile[pk] = runs;
     const row = {};
     for (const k of keys) {
       const vals = runs.map((r) => r.ms[k]);
@@ -276,6 +283,26 @@ function main() {
   for (const pk of Object.keys(PROFILES)) {
     const f = out[pk].full;
     console.log(`active-play to full run (${pk}): ${f.medA === undefined ? "never" : (f.medA / 3600).toFixed(2) + "h"}`);
+  }
+  console.log("\ncontract payout as multiple of one minute of sale income (median, average profile, by zone paid)");
+  console.log("zone".padEnd(22) + "click".padStart(12) + "machines".padStart(12) + "deliver".padStart(12) + "payouts/run".padStart(14));
+  const avg = runsByProfile.average;
+  const pooled = avg.flatMap((r) => r.payouts);
+  for (let z = 0; z < D.zones.length; z++) {
+    const inZone = pooled.filter((p) => p.zone === z);
+    const cell = (kind) => {
+      const v = inZone.filter((p) => p.kind === kind && p.perMin > 0).map((p) => p.cash / p.perMin);
+      const m = median(v);
+      return m === undefined ? "-" : m.toFixed(2) + "x";
+    };
+    console.log(D.zones[z].name.padEnd(22) + cell("click").padStart(12) + cell("machines").padStart(12) + cell("deliver").padStart(12) + (inZone.length / SEEDS).toFixed(1).padStart(14));
+  }
+  console.log("\ncontract share of cash earned (all runs):");
+  for (const pk of Object.keys(PROFILES)) {
+    const rs = runsByProfile[pk];
+    const cash = rs.reduce((a, r) => a + r.payouts.reduce((b, p) => b + p.cash, 0), 0);
+    const earned = rs.reduce((a, r) => a + r.cashEarned, 0);
+    console.log(`  ${pk.padEnd(10)} ${earned > 0 ? ((100 * cash) / earned).toFixed(1) + "%" : "n/a"}`);
   }
 }
 
