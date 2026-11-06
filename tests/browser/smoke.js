@@ -530,6 +530,55 @@ async function scenarioMobile(browser) {
   await context.close();
 }
 
+async function scenarioSpaceHold(browser) {
+  const seed = seedBase({ tutorial: 99 });
+  const { context, page } = await newPage(browser, { seed, label: "space-hold" });
+  await page.click("#tab-settings");
+  const readTaps = async () => parseInt((await text(page, "#st-clicks")).replace(/[^0-9]/g, ""), 10);
+  const blurFocus = () => page.evaluate(() => document.activeElement && document.activeElement.blur());
+
+  await blurFocus();
+  const before = await readTaps();
+  await page.keyboard.down("Space");
+  for (let i = 0; i < 30; i++) {
+    await sleep(33);
+    await page.keyboard.down("Space");
+  }
+  await page.keyboard.up("Space");
+  await sleep(400);
+  const afterHold = await readTaps();
+  check("holding Space for ~1s counts exactly one click", afterHold - before === 1, "taps " + before + " -> " + afterHold);
+
+  await blurFocus();
+  const mouseBefore = await readTaps();
+  const p = await canvasPoint(page);
+  await page.mouse.click(p.x, p.y);
+  await sleep(400);
+  const mouseAfter = await readTaps();
+  check("mouse click still counts exactly one", mouseAfter - mouseBefore === 1, "taps " + mouseBefore + " -> " + mouseAfter);
+
+  await blurFocus();
+  const tapBefore = await readTaps();
+  await page.keyboard.press("Space");
+  await sleep(400);
+  const tapAfter = await readTaps();
+  check("single Space press counts exactly one click", tapAfter - tapBefore === 1, "taps " + tapBefore + " -> " + tapAfter);
+
+  await blurFocus();
+  const holdBefore = await readTaps();
+  await page.keyboard.down("Space");
+  for (let i = 0; i < 10; i++) {
+    await sleep(33);
+    await page.keyboard.down("Space");
+  }
+  await page.keyboard.up("Space");
+  await sleep(400);
+  const holdAfter = await readTaps();
+  check("second held press also counts exactly one click", holdAfter - holdBefore === 1, "taps " + holdBefore + " -> " + holdAfter);
+
+  await context.close();
+}
+
 async function scenarioTablet(browser) {
   const seed = seedBase({
     cash: 25000,
@@ -559,9 +608,12 @@ async function scenarioTablet(browser) {
     ["export-import-reset", scenarioExportImportReset],
     ["offline", scenarioOffline],
     ["mobile", scenarioMobile],
+    ["space-hold", scenarioSpaceHold],
     ["tablet", scenarioTablet]
   ];
+  const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
   for (const [name, fn] of suites) {
+    if (only && !only.includes(name)) continue;
     console.log("\n== " + name);
     try {
       await fn(browser);
