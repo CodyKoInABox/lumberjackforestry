@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Timberline · an incremental forestry game</title>
+    <meta
+      name="description"
+      content="Timberline is an incremental forestry game. Start with a hand axe, climb to chainsaws, skidders, harvesters and drone fleets, then replant the forest for permanent bonuses."
+    />
+    <meta name="theme-color" content="#0e2218" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%B2%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="logo" aria-hidden="true">🌲</div>
+          <div>
+            <h1>Timberline</h1>
+            <p class="tagline">Fell the forest. Build the fleet. Replant the future.</p>
+          </div>
+        </div>
+
+        <div class="resources" role="status" aria-live="polite">
+          <div class="res">
+            <span class="res-icon" aria-hidden="true">🪵</span>
+            <div>
+              <div class="res-label">Timber</div>
+              <div class="res-value" id="res-timber">0</div>
+              <div class="res-rate" id="rate-timber">+0/s</div>
+            </div>
+          </div>
+          <div class="res">
+            <span class="res-icon" aria-hidden="true">💰</span>
+            <div>
+              <div class="res-label">Cash</div>
+              <div class="res-value" id="res-cash">$0</div>
+              <div class="res-rate" id="rate-cash">Market ×1.00</div>
+            </div>
+          </div>
+          <div class="res">
+            <span class="res-icon" aria-hidden="true">🧪</span>
+            <div>
+              <div class="res-label">Research</div>
+              <div class="res-value" id="res-research">0</div>
+              <div class="res-rate">points</div>
+            </div>
+          </div>
+          <div class="res" id="res-seeds-chip" hidden>
+            <span class="res-icon" aria-hidden="true">🌱</span>
+            <div>
+              <div class="res-label">Seedlings</div>
+              <div class="res-value" id="res-seeds">0</div>
+              <div class="res-rate">permanent bonus</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="top-actions">
+          <button class="icon-btn" id="btn-sound" type="button" aria-label="Toggle sound" aria-pressed="true">🔊</button>
+          <button class="icon-btn" id="btn-help" type="button" aria-label="Replay the tutorial" title="Replay the tutorial">?</button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="stage-wrap" aria-label="Forest stage">
+          <div class="stage" id="stage">
+            <canvas id="scene" tabindex="0" role="button" aria-label="Chop the tree. Press Space to chop."></canvas>
+
+            <div class="hud hud-top">
+              <div class="zone">
+                <div class="zone-name" id="zone-name">Sapling Hill</div>
+                <div class="zone-sub" id="zone-sub"></div>
+                <div class="zone-next" id="zone-next"></div>
+              </div>
+              <div class="event-chip" id="event-chip" hidden></div>
+            </div>
+
+            <div class="hud hud-bottom">
+              <div class="tree-bar">
+                <div class="tree-bar-fill" id="tree-bar-fill"></div>
+                <div class="tree-bar-label" id="tree-bar-label">Tree 12 / 12</div>
+              </div>
+              <div class="click-info" id="click-info"></div>
+            </div>
+          </div>
+
+          <div class="contract card-surface" id="contract-card">
+            <div class="contract-icon" id="ct-icon" aria-hidden="true">📋</div>
+            <div class="contract-body">
+              <div class="contract-title" id="ct-title">No contract on the board</div>
+              <div class="contract-desc" id="ct-desc"></div>
+              <div class="track"><div class="track-fill" id="ct-bar"></div></div>
+              <div class="contract-time" id="ct-time"></div>
+            </div>
+          </div>
+
+          <div class="stage-foot card-surface">
+            <div class="sell-group">
+              <button class="btn primary sell-btn" id="sell-btn" type="button">
+                <span id="sell-btn-label">Sell all · $0</span>
+              </button>
+              <div class="market" title="Market price over the last few minutes">
+                <span class="market-arrow flat" id="market-arrow">■</span>
+                <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+                  <polyline id="spark-line" points="0,20 100,20" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" />
+                </svg>
+              </div>
+            </div>
+            <div class="fleet-wrap">
+              <div class="fleet-label">Active fleet</div>
+              <div class="fleet" id="fleet-strip"></div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="panel card-surface" aria-label="Game panels">
+          <nav class="tabs" role="tablist">
+            <button class="tab" id="tab-tools" role="tab" type="button">Gear <span class="badge" id="badge-tools" hidden>0</span></button>
+            <button class="tab" id="tab-fleet" role="tab" type="button">Fleet</button>
+            <button class="tab" id="tab-upgrades" role="tab" type="button">Upgrades <span class="badge" id="badge-upgrades" hidden>0</span></button>
+            <button class="tab" id="tab-research" role="tab" type="button">Research <span class="badge" id="badge-research" hidden>0</span></button>
+            <button class="tab" id="tab-replant" role="tab" type="button">Replant</button>
+            <button class="tab" id="tab-log" role="tab" type="button">Log</button>
+            <button class="tab" id="tab-settings" role="tab" type="button">Settings</button>
+          </nav>
+
+          <div class="tab-body">
+            <section class="panel-tab" id="panel-tools" role="tabpanel" hidden>
+              <p class="panel-intro">Your tool sets how hard every tap hits. Buy the next one in order.</p>
+              <div class="list" id="list-tools"></div>
+            </section>
+
+            <section class="panel-tab" id="panel-fleet" role="tabpanel" hidden>
+              <div class="bulk-row">
+                <span class="bulk-label">Hire amount</span>
+                <div class="bulk-bar" id="bulk-bar">
+                  <button type="button" data-bulk="1">×1</button>
+                  <button type="button" data-bulk="10">×10</button>
+                  <button type="button" data-bulk="100">×100</button>
+                  <button type="button" data-bulk="max">Max</button>
+                </div>
+              </div>
+              <div class="list" id="list-fleet"></div>
+            </section>
+
+            <section class="panel-tab" id="panel-upgrades" role="tabpanel" hidden>
+              <p class="panel-intro">Overhauls double a machine's output. Sawmill upgrades raise your sale price. Automation runs the show.</p>
+              <div class="list" id="list-upgrades"></div>
+            </section>
+
+            <section class="panel-tab" id="panel-research" role="tabpanel" hidden>
+              <p class="panel-intro">Research points drop from every felled tree, more in harder terrain. Spend them on permanent upgrades.</p>
+              <div class="list" id="list-research"></div>
+            </section>
+
+            <section class="panel-tab" id="panel-replant" role="tabpanel" hidden>
+              <div class="replant">
+                <div class="replant-hero">🌱</div>
+                <h2>Replant the forest</h2>
+                <p class="panel-intro">
+                  Reset this run for seedlings. Each seedling adds +10% to all timber output for every run after, and research stays with you.
+                </p>
+                <div class="stat-row"><span>Seedlings</span><strong id="rp-seeds">0</strong></div>
+                <div class="stat-row"><span>Output bonus</span><strong id="rp-bonus">+0% output</strong></div>
+                <div class="stat-row"><span>Run timber</span><strong><span id="rp-run">0</span> / <span id="rp-need">10M</span></strong></div>
+                <div class="track"><div class="track-fill" id="rp-bar"></div></div>
+                <div class="rp-gain" id="rp-gain"></div>
+                <button class="btn primary wide" id="rp-btn" type="button" disabled>Not yet</button>
+              </div>
+            </section>
+
+            <section class="panel-tab" id="panel-log" role="tabpanel" hidden>
+              <p class="panel-intro" id="log-count"></p>
+              <div class="list" id="list-log"></div>
+            </section>
+
+            <section class="panel-tab" id="panel-settings" role="tabpanel" hidden>
+              <h3 class="section-h">Statistics</h3>
+              <div class="stat-grid">
+                <div class="stat"><span>Lifetime timber</span><strong id="st-lifetime">0</strong></div>
+                <div class="stat"><span>This run</span><strong id="st-run">0</strong></div>
+                <div class="stat"><span>Cash earned</span><strong id="st-cash">$0</strong></div>
+                <div class="stat"><span>Trees felled</span><strong id="st-trees">0</strong></div>
+                <div class="stat"><span>Manual taps</span><strong id="st-clicks">0</strong></div>
+                <div class="stat"><span>Critical hits</span><strong id="st-crits">0</strong></div>
+                <div class="stat"><span>Machines hired</span><strong id="st-hired">0</strong></div>
+                <div class="stat"><span>Contracts done</span><strong id="st-contracts">0</strong></div>
+                <div class="stat"><span>Replants</span><strong id="st-replants">0</strong></div>
+                <div class="stat"><span>Forest events</span><strong id="st-events">0</strong></div>
+                <div class="stat"><span>Play time</span><strong id="st-playtime">0s</strong></div>
+              </div>
+
+              <h3 class="section-h">Save & preferences</h3>
+              <p class="panel-intro">Progress saves to this browser automatically. Export a save string to move it between devices.</p>
+              <div class="settings-grid">
+                <button class="btn" id="set-sound" type="button" aria-pressed="true">Sound: on</button>
+                <button class="btn" id="set-help" type="button">Replay tutorial</button>
+                <button class="btn" id="set-export" type="button">Export save</button>
+                <button class="btn" id="set-import" type="button">Import save</button>
+                <button class="btn danger" id="set-reset" type="button">Reset progress</button>
+              </div>
+              <p class="fineprint">Timberline is an original game. Machine brands are fictional. Saves stay in your browser's local storage.</p>
+            </section>
+          </div>
+        </aside>
+      </main>
+
+      <div class="tutorial" id="tutorial" hidden role="region" aria-label="Tutorial">
+        <div class="tut-count" id="tut-count">Step 1 of 6</div>
+        <h3 id="tut-title"></h3>
+        <p id="tut-text"></p>
+        <div class="tut-foot">
+          <div class="tut-dots" id="tut-dots"></div>
+          <div class="tut-actions">
+            <button class="btn ghost" id="tut-skip" type="button">Skip</button>
+            <button class="btn primary" id="tut-next" type="button">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="toasts" id="toasts" aria-live="polite"></div>
+      <div class="modal-root" id="modal-root" hidden></div>
+    </div>
+
+    <script src="js/util.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/engine.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/scene.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>
