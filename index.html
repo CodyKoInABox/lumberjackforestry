@@ -153,6 +153,19 @@
             <section class="panel-tab" id="panel-upgrades" role="tabpanel" hidden>
               <p class="panel-intro">Overhauls double a machine's output. Sawmill upgrades raise your sale price. Automation runs the show.</p>
               <div class="list" id="list-upgrades"></div>
+              <div class="sell-floor" id="sell-floor" hidden>
+                <h3 class="section-h">Auto-Sell floor</h3>
+                <p class="fineprint">Auto-Sell only sells when the market price is at or above the floor. Timber waits for a better price.</p>
+                <p class="sell-floor-value" id="sell-floor-value"></p>
+                <p class="fineprint" id="sell-floor-now"></p>
+                <div class="prod-chips">
+                  <button class="chip-btn" type="button" data-floor="0" aria-pressed="false">Any price</button>
+                  <button class="chip-btn" type="button" data-floor="0.8" aria-pressed="false">×0.80</button>
+                  <button class="chip-btn" type="button" data-floor="1" aria-pressed="false">×1.00</button>
+                  <button class="chip-btn" type="button" data-floor="1.2" aria-pressed="false">×1.20</button>
+                  <button class="chip-btn" type="button" data-floor="1.5" aria-pressed="false">×1.50</button>
+                </div>
+              </div>
             </section>
 
             <section class="panel-tab" id="panel-research" role="tabpanel" hidden>

@@ -940,6 +940,43 @@ async function scenarioProduction(browser) {
   await context.close();
 }
 
+async function scenarioSellFloor(browser) {
+  const ignored = seedBase({ tutorial: 99, timber: 1000, nodes: { mkt2: true }, auto: { sell: true }, autoSellMin: 1.2, market: { price: 1, hist: [1] } });
+  let { context, page } = await newPage(browser, { seed: ignored, viewport: { width: 1280, height: 900 }, label: "floor-old" });
+  const sold = await waitSave(page, (sv) => sv.timber < 1 && sv.cash > 0, 9000);
+  check("without Price Floors, Auto-Sell ignores a saved floor", !!sold && sold.cash > 0, "timber=" + (sold && sold.timber));
+  await context.close();
+
+  const gated = seedBase({ tutorial: 99, timber: 1000, nodes: { mkt2: true, mkt5: true }, auto: { sell: true }, autoSellMin: 1.2, market: { price: 1, hist: [1] } });
+  ({ context, page } = await newPage(browser, { seed: gated, viewport: { width: 1280, height: 900 }, label: "floor-gate" }));
+  const startedAt = Date.now();
+  const held = await waitSave(page, (sv) => sv.savedAt > startedAt + 4500, 12000);
+  check("below the floor, Auto-Sell holds timber", !!held && Math.abs(held.timber - 1000) < 1e-6 && held.cash === 0, "timber=" + (held && held.timber) + " cash=" + (held && held.cash));
+  await page.click("#tab-upgrades");
+  await sleep(300);
+  check("the floor status says it is holding below the floor", /holding/.test(await text(page, "#sell-floor-now")), await text(page, "#sell-floor-now"));
+  await page.click('#sell-floor [data-floor="0.8"]');
+  const after = await waitSave(page, (sv) => sv.autoSellMin === 0.8 && sv.timber < 1 && sv.cash > 0, 9000);
+  check("above the floor, Auto-Sell sells and the floor is saved", !!after, "timber=" + (after && after.timber) + " cash=" + (after && after.cash));
+  check("the floor status says it is selling above the floor", /selling/.test(await text(page, "#sell-floor-now")), await text(page, "#sell-floor-now"));
+  await ensureScreenshot(page, "sell-floor-upgrades.png");
+  await context.close();
+
+  const buy = seedBase({ tutorial: 99, research: 1000, nodes: { mkt2: true }, auto: { sell: true } });
+  ({ context, page } = await newPage(browser, { seed: buy, viewport: { width: 1280, height: 900 }, label: "floor-buy" }));
+  await sleep(300);
+  await page.click("#tab-upgrades");
+  check("the floor control stays hidden until Price Floors is researched", await page.$eval("#sell-floor", (n) => n.hidden));
+  await page.click("#tab-research");
+  await page.click('#list-research .card:has-text("Price Floors") .card-btn');
+  const researched = await waitSave(page, (sv) => sv.nodes && sv.nodes.mkt5, 9000);
+  check("Price Floors can be researched", !!researched);
+  await page.click("#tab-upgrades");
+  await sleep(250);
+  check("the floor control appears after research", !(await page.$eval("#sell-floor", (n) => n.hidden)));
+  await context.close();
+}
+
 async function scenarioProductionMobile(browser) {
   for (const vp of MOBILE_VIEWPORTS) {
     const { context, page } = await newPage(browser, { seed: productionSeed(), viewport: { width: vp.width, height: vp.height }, label: "prod-" + vp.name });
@@ -1008,6 +1045,7 @@ async function scenarioTablet(browser) {
     ["features", scenarioFeatures],
     ["production", scenarioProduction],
     ["production-mobile", scenarioProductionMobile],
+    ["sell-floor", scenarioSellFloor],
     ["tablet", scenarioTablet]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;

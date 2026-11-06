@@ -122,6 +122,7 @@ LJ.DATA = {
     { id: "mkt1", branch: "markets", name: "Export Contracts", cost: 10, req: null, desc: "+15% timber sale price." },
     { id: "mkt2", branch: "markets", name: "Forward Trading", cost: 60, req: "mkt1", desc: "Unlocks Auto-Sell." },
     { id: "mkt3", branch: "markets", name: "Index Futures", cost: 300, req: "mkt2", desc: "+40% timber sale price." },
+    { id: "mkt5", branch: "markets", name: "Price Floors", cost: 400, req: "mkt2", desc: "Auto-Sell waits until the market reaches a floor you set." },
     { id: "mkt4", branch: "markets", name: "Commodity Hedging", cost: 2000, req: "mkt3", desc: "Market price swings are half as wild." },
 
     { id: "aut1", branch: "automation", name: "Auto-Fell", cost: 25, req: null, desc: "Unlocks Auto-Fell: your saw swings on its own." },

@@ -877,6 +877,16 @@ textarea {
   gap: 8px;
 }
 
+/* Auto-Sell floor */
+.sell-floor {
+  margin-top: 14px;
+}
+
+.sell-floor-value {
+  margin: 6px 0 2px;
+  font-weight: 800;
+}
+
 /* Production */
 .prod-stats {
   display: grid;
