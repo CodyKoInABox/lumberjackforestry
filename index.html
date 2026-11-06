@@ -105,6 +105,11 @@
               <button class="btn primary sell-btn" id="sell-btn" type="button" aria-keyshortcuts="S" title="Sell all (S)">
                 <span id="sell-btn-label">Sell all · $0</span>
               </button>
+              <div class="route-group" id="route-group" hidden>
+                <button class="btn route-send" id="btn-send-prod" type="button">Send to production</button>
+                <button class="chip-btn" id="btn-autoprod" type="button" aria-pressed="false">Auto overflow: off</button>
+                <p class="route-status" id="route-status"></p>
+              </div>
               <div class="market" title="Market price over the last few minutes">
                 <span class="market-arrow flat" id="market-arrow">■</span>
                 <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
@@ -153,6 +158,19 @@
             <section class="panel-tab" id="panel-upgrades" role="tabpanel" hidden>
               <p class="panel-intro">Overhauls double a machine's output. Sawmill upgrades raise your sale price. Automation runs the show.</p>
               <div class="list" id="list-upgrades"></div>
+              <div class="sell-floor" id="sell-floor" hidden>
+                <h3 class="section-h">Auto-Sell floor</h3>
+                <p class="fineprint">Auto-Sell only sells when the market price is at or above the floor. Timber waits for a better price.</p>
+                <p class="sell-floor-value" id="sell-floor-value"></p>
+                <p class="fineprint" id="sell-floor-now"></p>
+                <div class="prod-chips">
+                  <button class="chip-btn" type="button" data-floor="0" aria-pressed="false">Any price</button>
+                  <button class="chip-btn" type="button" data-floor="0.8" aria-pressed="false">×0.80</button>
+                  <button class="chip-btn" type="button" data-floor="1" aria-pressed="false">×1.00</button>
+                  <button class="chip-btn" type="button" data-floor="1.2" aria-pressed="false">×1.20</button>
+                  <button class="chip-btn" type="button" data-floor="1.5" aria-pressed="false">×1.50</button>
+                </div>
+              </div>
             </section>
 
             <section class="panel-tab" id="panel-research" role="tabpanel" hidden>
@@ -183,6 +201,8 @@
                 <div class="stat"><span>Throughput</span><strong id="pr-throughput">0/s</strong></div>
                 <div class="stat"><span>Income at market</span><strong id="pr-income">$0/s</strong></div>
                 <div class="stat"><span>Lines running</span><strong id="pr-slots">0 / 1</strong></div>
+                <div class="stat"><span>Sent this run</span><strong id="pr-sent">0</strong></div>
+                <div class="stat"><span>Overflow sold</span><strong id="pr-overflow">0</strong></div>
               </div>
               <div class="track"><div class="track-fill" id="pr-cap-bar"></div></div>
               <p class="fineprint" id="pr-room"></p>

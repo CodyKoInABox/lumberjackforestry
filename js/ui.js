@@ -420,6 +420,25 @@ LJ.UI = (function () {
       });
     }
     reconcile(el("list-upgrades"), items);
+    renderSellFloor(s, st);
+  }
+
+  function renderSellFloor(s, st) {
+    const box = el("sell-floor");
+    box.hidden = !s.nodes.mkt5;
+    if (box.hidden) return;
+    for (const b of box.querySelectorAll("[data-floor]")) {
+      const on = Number(b.dataset.floor) === s.autoSellMin;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", String(on));
+    }
+    setText(el("sell-floor-value"), s.autoSellMin > 0 ? "Floor ×" + s.autoSellMin.toFixed(2) : "Floor: any price");
+    const now = "Market ×" + st.price.toFixed(2) + " · ";
+    let status;
+    if (!E.autoOn(s, "sell")) status = "Turn on Auto-Sell to use the floor.";
+    else if (E.sellFloorOpen(s, st)) status = "Above the floor: Auto-Sell is selling.";
+    else status = "Below the floor: Auto-Sell is holding timber.";
+    setText(el("sell-floor-now"), now + status);
   }
 
   function renderResearch(s) {
@@ -571,6 +590,7 @@ LJ.UI = (function () {
     const st = E.stats(s);
     renderTop(s, st);
     renderStage(s, st);
+    LJ.ProductionUI.renderRouting(s, st);
     renderContract(s);
     renderFleetStrip(s, st);
     renderBadges(s, st);
@@ -840,6 +860,11 @@ LJ.UI = (function () {
       });
     }
     el("rp-btn").addEventListener("click", openReplant);
+    for (const b of el("sell-floor").querySelectorAll("[data-floor]")) {
+      b.addEventListener("click", () => {
+        if (E.setSellFloor(game.s, Number(b.dataset.floor))) refresh();
+      });
+    }
     el("set-sound").addEventListener("click", toggleSound);
     el("set-colorblind").addEventListener("click", toggleColorblind);
     el("btn-sound").addEventListener("click", toggleSound);

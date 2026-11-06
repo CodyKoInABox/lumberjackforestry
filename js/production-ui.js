@@ -2,6 +2,7 @@ var LJ = globalThis.LJ || (globalThis.LJ = {});
 
 LJ.ProductionUI = (function () {
   const P = LJ.Production;
+  const E = LJ.Engine;
   const D = LJ.DATA.production;
   const U = LJ.util;
   const $ = (id) => document.getElementById(id);
@@ -113,6 +114,8 @@ LJ.ProductionUI = (function () {
     setText($("pr-throughput"), U.fmt(sum.throughput) + "/s");
     setText($("pr-income"), U.money(sum.income) + "/s");
     setText($("pr-slots"), sum.lines + " / " + sum.slots);
+    setText($("pr-sent"), U.fmt(Math.floor(s.prod.sent)));
+    setText($("pr-overflow"), U.fmt(Math.floor(s.prod.overflow)) + " · " + U.money(s.prod.overflowCash));
     const canSend = s.timber >= 1 && room >= 1;
     $("pr-send-quarter").disabled = !canSend;
     $("pr-send-half").disabled = !canSend;
@@ -162,6 +165,28 @@ LJ.ProductionUI = (function () {
     renderBuild(s, sum);
   }
 
+  function renderRouting(s, st) {
+    const group = $("route-group");
+    group.hidden = !E.prodUnlocked(s);
+    if (group.hidden) return;
+    const sum = P.summary(s, st.price);
+    const room = Math.max(0, sum.capacity - s.prod.queue);
+    $("btn-send-prod").disabled = !(s.timber >= 1 && room >= 1);
+    const b = $("btn-autoprod");
+    setText(b, "Auto overflow: " + (s.autoProd ? "on" : "off"));
+    b.setAttribute("aria-pressed", String(s.autoProd));
+    setText(
+      $("route-status"),
+      "To production: " +
+        U.fmt(Math.floor(s.prod.sent)) +
+        " · Sold as overflow: " +
+        U.fmt(Math.floor(s.prod.overflow)) +
+        " (" +
+        U.money(s.prod.overflowCash) +
+        ")"
+    );
+  }
+
   function bind() {
     const sends = { "pr-send-quarter": 0.25, "pr-send-half": 0.5, "pr-send-all": 1 };
     for (const [id, frac] of Object.entries(sends)) {
@@ -194,10 +219,20 @@ LJ.ProductionUI = (function () {
     });
   }
 
+  function bindRouting() {
+    $("btn-send-prod").addEventListener("click", () => {
+      if (E.sendAllToProduction(ctx.state())) ctx.refresh();
+    });
+    $("btn-autoprod").addEventListener("click", () => {
+      if (E.toggleAutoProd(ctx.state())) ctx.refresh();
+    });
+  }
+
   function init(game, c) {
     ctx = Object.assign({ state: () => game.s }, c);
     bind();
+    bindRouting();
   }
 
-  return { init, render };
+  return { init, render, renderRouting };
 })();

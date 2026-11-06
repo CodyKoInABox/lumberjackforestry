@@ -940,10 +940,124 @@ async function scenarioProduction(browser) {
   await context.close();
 }
 
+async function scenarioSellFloor(browser) {
+  const ignored = seedBase({ tutorial: 99, timber: 1000, nodes: { mkt2: true }, auto: { sell: true }, autoSellMin: 1.2, market: { price: 1, hist: [1] } });
+  let { context, page } = await newPage(browser, { seed: ignored, viewport: { width: 1280, height: 900 }, label: "floor-old" });
+  const sold = await waitSave(page, (sv) => sv.timber < 1 && sv.cash > 0, 9000);
+  check("without Price Floors, Auto-Sell ignores a saved floor", !!sold && sold.cash > 0, "timber=" + (sold && sold.timber));
+  await context.close();
+
+  const gated = seedBase({ tutorial: 99, timber: 1000, nodes: { mkt2: true, mkt5: true }, auto: { sell: true }, autoSellMin: 1.2, market: { price: 1, hist: [1] } });
+  ({ context, page } = await newPage(browser, { seed: gated, viewport: { width: 1280, height: 900 }, label: "floor-gate" }));
+  const startedAt = Date.now();
+  const held = await waitSave(page, (sv) => sv.savedAt > startedAt + 4500, 12000);
+  check("below the floor, Auto-Sell holds timber", !!held && Math.abs(held.timber - 1000) < 1e-6 && held.cash === 0, "timber=" + (held && held.timber) + " cash=" + (held && held.cash));
+  await page.click("#tab-upgrades");
+  await sleep(300);
+  check("the floor status says it is holding below the floor", /holding/.test(await text(page, "#sell-floor-now")), await text(page, "#sell-floor-now"));
+  await page.click('#sell-floor [data-floor="0.8"]');
+  const after = await waitSave(page, (sv) => sv.autoSellMin === 0.8 && sv.timber < 1 && sv.cash > 0, 9000);
+  check("above the floor, Auto-Sell sells and the floor is saved", !!after, "timber=" + (after && after.timber) + " cash=" + (after && after.cash));
+  check("the floor status says it is selling above the floor", /selling/.test(await text(page, "#sell-floor-now")), await text(page, "#sell-floor-now"));
+  await ensureScreenshot(page, "sell-floor-upgrades.png");
+  await context.close();
+
+  const buy = seedBase({ tutorial: 99, research: 1000, nodes: { mkt2: true }, auto: { sell: true } });
+  ({ context, page } = await newPage(browser, { seed: buy, viewport: { width: 1280, height: 900 }, label: "floor-buy" }));
+  await sleep(300);
+  await page.click("#tab-upgrades");
+  check("the floor control stays hidden until Price Floors is researched", await page.$eval("#sell-floor", (n) => n.hidden));
+  await page.click("#tab-research");
+  await page.click('#list-research .card:has-text("Price Floors") .card-btn');
+  const researched = await waitSave(page, (sv) => sv.nodes && sv.nodes.mkt5, 9000);
+  check("Price Floors can be researched", !!researched);
+  await page.click("#tab-upgrades");
+  await sleep(250);
+  check("the floor control appears after research", !(await page.$eval("#sell-floor", (n) => n.hidden)));
+  await context.close();
+}
+
+async function scenarioAutoProduction(browser) {
+  const viewport = { width: 1280, height: 900 };
+  const base = { replants: 1, cash: 0, timber: 1000, tutorial: 99 };
+
+  let { context, page } = await newPage(browser, {
+    seed: seedBase({ ...base, autoProd: true, prod: { queue: 300, warehouses: 0, factories: 0, nextLine: 1, lines: [] } }),
+    viewport,
+    label: "autoprod-full"
+  });
+  const overflowSold = await waitSave(page, (sv) => sv.prod && sv.prod.overflow > 0 && sv.timber < 1, 9000);
+  check(
+    "with production full, the overflow is sold",
+    !!overflowSold && Math.abs(overflowSold.prod.overflow - 1000) < 1e-6 && overflowSold.cash > 0 && overflowSold.prod.queue === 300,
+    "overflow=" + (overflowSold && overflowSold.prod.overflow) + " cash=" + (overflowSold && overflowSold.cash)
+  );
+  await context.close();
+
+  ({ context, page } = await newPage(browser, {
+    seed: seedBase({ ...base, autoProd: true, prod: { queue: 0, warehouses: 0, factories: 0, nextLine: 1, lines: [] } }),
+    viewport,
+    label: "autoprod-room"
+  }));
+  const split = await waitSave(page, (sv) => sv.prod && sv.prod.overflow > 0 && sv.timber < 1, 9000);
+  check(
+    "with room, production takes what fits and the rest is sold",
+    !!split && Math.abs(split.prod.queue - 300) < 1e-6 && Math.abs(split.prod.overflow - 700) < 1e-6,
+    "queue=" + (split && split.prod.queue) + " overflow=" + (split && split.prod.overflow)
+  );
+  await context.close();
+
+  ({ context, page } = await newPage(browser, {
+    seed: seedBase({
+      ...base,
+      autoProd: true,
+      nodes: { mkt2: true, mkt5: true },
+      auto: { sell: true },
+      autoSellMin: 1.2,
+      market: { price: 1, hist: [1] },
+      prod: { queue: 0, warehouses: 0, factories: 0, nextLine: 1, lines: [] }
+    }),
+    viewport,
+    label: "autoprod-floor"
+  }));
+  const startedAt = Date.now();
+  const held = await waitSave(page, (sv) => sv.savedAt > startedAt + 4500, 12000);
+  check(
+    "a closed floor holds the overflow while production still fills",
+    !!held && Math.abs(held.prod.queue - 300) < 1e-6 && Math.abs(held.timber - 700) < 1e-6 && held.prod.overflow === 0 && held.cash === 0,
+    "queue=" + (held && held.prod.queue) + " timber=" + (held && held.timber) + " cash=" + (held && held.cash)
+  );
+  await context.close();
+
+  ({ context, page } = await newPage(browser, {
+    seed: seedBase({ ...base, prod: { queue: 0, warehouses: 0, factories: 0, nextLine: 1, lines: [] } }),
+    viewport,
+    label: "autoprod-manual"
+  }));
+  await sleep(300);
+  check("the main tab offers a send to production choice", !(await page.$eval("#route-group", (n) => n.hidden)));
+  await page.click("#btn-send-prod");
+  const manual = await waitSave(page, (sv) => sv.prod && sv.prod.queue > 0, 9000);
+  check("the main-tab send moves timber into production", !!manual && Math.abs(manual.timber - 700) < 1e-6 && Math.abs(manual.prod.queue - 300) < 1e-6);
+  await page.click("#btn-autoprod");
+  const toggled = await waitSave(page, (sv) => sv.autoProd === true, 9000);
+  check("the auto overflow toggle saves on", !!toggled);
+  check("the main tab shows the sent and sold split", (await text(page, "#route-status")).includes("To production: 300"), await text(page, "#route-status"));
+  await ensureScreenshot(page, "auto-production-main.png");
+  await context.close();
+
+  ({ context, page } = await newPage(browser, { seed: seedBase({ timber: 500, tutorial: 99 }), viewport, label: "autoprod-locked" }));
+  await sleep(300);
+  check("the send choice stays hidden before the first replant", await page.$eval("#route-group", (n) => n.hidden));
+  await context.close();
+}
+
 async function scenarioProductionMobile(browser) {
   for (const vp of MOBILE_VIEWPORTS) {
     const { context, page } = await newPage(browser, { seed: productionSeed(), viewport: { width: vp.width, height: vp.height }, label: "prod-" + vp.name });
     await sleep(500);
+    const mainReport = await layoutReport(page);
+    check("[production " + vp.name + "] main-tab send controls fit with 44px targets", mainReport.overflow <= 1 && mainReport.small.length === 0, mainReport.small.length ? "small: " + mainReport.small.slice(0, 4).map((t) => t.label + " " + t.w + "x" + t.h).join("; ") : "overflow=" + mainReport.overflow);
     await page.click("#tab-production");
     await sleep(300);
     const report = await layoutReport(page);
@@ -1008,6 +1122,8 @@ async function scenarioTablet(browser) {
     ["features", scenarioFeatures],
     ["production", scenarioProduction],
     ["production-mobile", scenarioProductionMobile],
+    ["sell-floor", scenarioSellFloor],
+    ["auto-production", scenarioAutoProduction],
     ["tablet", scenarioTablet]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;

@@ -17,7 +17,18 @@ LJ.Production = (function () {
   }
 
   function createRun() {
-    return { queue: 0, sent: 0, processed: 0, earned: 0, warehouses: 0, factories: 0, nextLine: 1, lines: [] };
+    return {
+      queue: 0,
+      sent: 0,
+      processed: 0,
+      earned: 0,
+      overflow: 0,
+      overflowCash: 0,
+      warehouses: 0,
+      factories: 0,
+      nextLine: 1,
+      lines: []
+    };
   }
 
   function capacityFor(warehouses) {
@@ -52,6 +63,8 @@ LJ.Production = (function () {
     s.sent = finite(raw.sent);
     s.processed = finite(raw.processed);
     s.earned = finite(raw.earned);
+    s.overflow = finite(raw.overflow);
+    s.overflowCash = finite(raw.overflowCash);
     s.warehouses = Math.floor(finite(raw.warehouses));
     s.factories = Math.floor(finite(raw.factories));
     s.queue = Math.min(finite(raw.queue), capacityFor(s.warehouses));
