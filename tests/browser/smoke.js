@@ -34,7 +34,9 @@ function hook(page, label) {
 async function newPage(browser, opts) {
   const context = await browser.newContext({
     viewport: opts.viewport || { width: 1280, height: 900 },
-    deviceScaleFactor: 1
+    deviceScaleFactor: 1,
+    hasTouch: !!opts.touch,
+    isMobile: !!opts.touch
   });
   if (opts.seed) {
     await context.addInitScript(
@@ -579,6 +581,281 @@ async function scenarioSpaceHold(browser) {
   await context.close();
 }
 
+const MOBILE_VIEWPORTS = [
+  { name: "360x740", width: 360, height: 740 },
+  { name: "390x844", width: 390, height: 844 },
+  { name: "430x932", width: 430, height: 932 },
+  { name: "820x1180-tablet", width: 820, height: 1180 },
+  { name: "landscape-844x390", width: 844, height: 390 },
+  { name: "landscape-740x360", width: 740, height: 360 }
+];
+
+const richSeed = () =>
+  seedBase({
+    cash: 25000,
+    timber: 300,
+    runTimber: 60000,
+    lifetimeTimber: 60000,
+    cashEarned: 25000,
+    tool: 2,
+    zone: 1,
+    machines: { crew: 12, skidder: 3, feller: 2, drone: 1 },
+    runUnlocked: { crew: true, skidder: true, feller: true, drone: true },
+    nodes: { hyd1: true },
+    research: 40,
+    tutorial: 99
+  });
+
+async function layoutReport(page) {
+  return page.evaluate(() => {
+    const vw = document.documentElement.clientWidth;
+    const vh = window.innerHeight;
+    const small = [...document.querySelectorAll("button, [role=tab], a[href]")]
+      .filter((n) => n.getClientRects().length > 0)
+      .map((n) => {
+        const r = n.getBoundingClientRect();
+        return { label: (n.id || n.getAttribute("aria-label") || n.textContent || n.tagName).trim().slice(0, 28), w: Math.round(r.width), h: Math.round(r.height) };
+      })
+      .filter((t) => t.w < 44 || t.h < 44);
+    const sceneRect = document.getElementById("scene").getBoundingClientRect();
+    const covered = [];
+    const controls = [
+      ["scene", document.getElementById("scene")],
+      ["sell", document.getElementById("sell-btn")],
+      ...[...document.querySelectorAll(".tabs [role=tab]")].map((t) => [t.id, t])
+    ];
+    for (const [label, node] of controls) {
+      if (!node || node.getClientRects().length === 0) continue;
+      const r = node.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      if (x < 0 || y < 0 || x > vw || y > vh) continue;
+      const hit = document.elementFromPoint(x, y);
+      if (!hit || !(node === hit || node.contains(hit))) covered.push(label + " <- " + (hit ? hit.className || hit.tagName : "none"));
+    }
+    return {
+      overflow: document.documentElement.scrollWidth - vw,
+      small,
+      sceneInside: sceneRect.left >= -1 && sceneRect.right <= vw + 1,
+      sceneW: Math.round(sceneRect.width),
+      sceneH: Math.round(sceneRect.height),
+      covered
+    };
+  });
+}
+
+async function scenarioMobileLayout(browser) {
+  for (const vp of MOBILE_VIEWPORTS) {
+    const { context, page } = await newPage(browser, { seed: richSeed(), viewport: { width: vp.width, height: vp.height }, label: "layout-" + vp.name });
+    await sleep(700);
+    const base = await layoutReport(page);
+    check("[" + vp.name + "] no horizontal overflow", base.overflow <= 1, "overflow=" + base.overflow + "px");
+    check("[" + vp.name + "] stage fits the viewport", base.sceneInside && base.sceneW >= 200 && base.sceneH >= 120, "scene=" + base.sceneW + "x" + base.sceneH);
+    check("[" + vp.name + "] tap targets are at least 44px", base.small.length === 0, base.small.length ? "small: " + base.small.slice(0, 6).map((t) => t.label + " " + t.w + "x" + t.h).join("; ") : "all ok");
+
+    await page.click("#tab-fleet");
+    await sleep(250);
+    await page.evaluate(() => {
+      const cards = document.querySelectorAll("#list-fleet .card");
+      cards[cards.length - 1].scrollIntoView({ block: "center" });
+    });
+    await sleep(250);
+    const lastVisible = await page.evaluate(() => {
+      const cards = document.querySelectorAll("#list-fleet .card");
+      const r = cards[cards.length - 1].getBoundingClientRect();
+      return r.top >= 0 && r.bottom <= window.innerHeight + 1;
+    });
+    check("[" + vp.name + "] buy panel scrolls to the last machine", lastVisible, "cards=" + (await page.$$eval("#list-fleet .card", (n) => n.length)));
+
+    await page.click("#tab-upgrades");
+    await sleep(250);
+    await page.evaluate(() => {
+      const cards = document.querySelectorAll("#list-upgrades .card");
+      if (cards.length) cards[cards.length - 1].scrollIntoView({ block: "center" });
+    });
+    await sleep(250);
+    const upgradesOk = await page.evaluate(() => {
+      const cards = document.querySelectorAll("#list-upgrades .card");
+      if (!cards.length) return false;
+      const r = cards[cards.length - 1].getBoundingClientRect();
+      return r.top >= 0 && r.bottom <= window.innerHeight + 1;
+    });
+    check("[" + vp.name + "] upgrade panel scrolls to the last card", upgradesOk);
+
+    await page.click("#tab-fleet");
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.evaluate(() => LJ.UI.toast({ icon: "🧪", title: "Layout check", text: "Toast placement at " + window.innerWidth + "px" }));
+    await sleep(350);
+    const withToast = await layoutReport(page);
+    check("[" + vp.name + "] toasts do not cover main controls", withToast.covered.length === 0, withToast.covered.join("; ") || "clear");
+    await ensureScreenshot(page, "mobile-" + vp.name + "-midgame.png");
+
+    await page.click("#tab-settings");
+    await sleep(200);
+    await page.click("#set-reset");
+    await sleep(300);
+    const modal = await page.evaluate(() => {
+      const box = document.querySelector("#modal-root .modal");
+      if (!box) return null;
+      const r = box.getBoundingClientRect();
+      const btns = [...box.querySelectorAll("button")].map((b) => {
+        const br = b.getBoundingClientRect();
+        return Math.min(br.width, br.height);
+      });
+      return { inside: r.left >= -1 && r.top >= -1 && r.right <= window.innerWidth + 1 && r.bottom <= window.innerHeight + 1, minBtn: btns.length ? Math.round(Math.min(...btns)) : 0 };
+    });
+    check("[" + vp.name + "] reset modal fits the viewport", !!modal && modal.inside, JSON.stringify(modal));
+    check("[" + vp.name + "] modal buttons are at least 44px", !!modal && modal.minBtn >= 44, modal ? "min=" + modal.minBtn : "no modal");
+    await ensureScreenshot(page, "mobile-" + vp.name + "-modal.png");
+    await page.keyboard.press("Escape");
+    await sleep(200);
+    await context.close();
+  }
+}
+
+async function scenarioTouch(browser) {
+  const { context, page } = await newPage(browser, { seed: richSeed(), viewport: { width: 390, height: 844 }, label: "touch", touch: true });
+  await sleep(500);
+  await page.click("#tab-settings");
+  await sleep(200);
+  const taps = async () => parseInt((await text(page, "#st-clicks")).replace(/[^0-9]/g, ""), 10);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await sleep(150);
+  const p = await canvasPoint(page);
+
+  let before = await taps();
+  await page.touchscreen.tap(p.x, p.y);
+  await sleep(350);
+  check("touch tap on the forest counts exactly one click", (await taps()) - before === 1);
+
+  const cdp = await context.newCDPSession(page);
+  before = await taps();
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: p.x, y: p.y }] });
+  await sleep(900);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await sleep(350);
+  check("long-press on the forest counts exactly one click", (await taps()) - before === 1);
+
+  await page.tap("#tab-fleet");
+  await sleep(200);
+  check("tapping a tab switches the panel", await page.$eval("#panel-fleet", (n) => !n.hidden));
+
+  const hireBefore = await page.$$eval("#list-fleet .card-btn:not([disabled])", (n) => n.length);
+  await page.evaluate(() => document.getElementById("tab-fleet").blur());
+  const firstBuy = await page.$("#list-fleet .card:not(.locked) .card-btn:not([disabled])");
+  const stripBefore = await text(page, "#fleet-strip");
+  if (firstBuy) {
+    await firstBuy.scrollIntoViewIfNeeded();
+    const box = await firstBuy.boundingBox();
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+    await sleep(350);
+  }
+  const stripAfter = await text(page, "#fleet-strip");
+  check("tapping a buy button hires a machine", !!firstBuy && stripAfter !== stripBefore, "buyable=" + hireBefore + " strip " + stripBefore.slice(0, 30) + " -> " + stripAfter.slice(0, 30));
+
+  await page.click("#tab-settings");
+  await sleep(150);
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  before = await taps();
+  await page.keyboard.down("Space");
+  for (let i = 0; i < 20; i++) {
+    await sleep(40);
+    await page.keyboard.down("Space");
+  }
+  await page.keyboard.up("Space");
+  await sleep(350);
+  check("held Space still counts one click", (await taps()) - before === 1);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await sleep(150);
+  const p2 = await canvasPoint(page);
+  before = await taps();
+  await page.touchscreen.tap(p2.x, p2.y);
+  await sleep(350);
+  check("touch tap still works after the Space fix", (await taps()) - before === 1);
+  await ensureScreenshot(page, "mobile-touch-390-after-taps.png");
+  await context.close();
+}
+
+async function scenarioVisuals(browser) {
+  const seed = seedBase({ cash: 500, runUnlocked: { crew: true }, tutorial: 99 });
+  const { context, page } = await newPage(browser, { seed, viewport: { width: 1280, height: 900 }, label: "visuals" });
+  await sleep(400);
+  await page.click("#tab-tools");
+  await page.click('#list-tools .card:has-text("Felling Axe") .card-btn');
+  await sleep(350);
+  const toolOnScreen = await page.$eval('.scene-tool[data-tool-id="felling-axe"]', (n) => {
+    const r = n.getBoundingClientRect();
+    return r.width > 0 && r.bottom <= window.innerHeight && r.right <= window.innerWidth;
+  }).catch(() => false);
+  check("purchased tool appears in the on-screen toolbar", toolOnScreen);
+
+  await page.click("#tab-fleet");
+  const crewBefore = await page.$eval("#scene", (c) => c.dataset.crewDrawn || "0");
+  await page.click('#list-fleet .card:has-text("Ground Crew") .card-btn');
+  await waitFor(async () => (await page.$eval("#scene", (c) => c.dataset.crewDrawn)) === "1", 3000);
+  const crewAfter = await page.$eval("#scene", (c) => c.dataset.crewDrawn);
+  check("hired crew member is drawn in the forest scene", crewBefore === "0" && crewAfter === "1", "crew drawn " + crewBefore + " -> " + crewAfter);
+
+  const photos = await page.$$eval("#list-fleet .card-photo", (imgs) => imgs.map((i) => ({ src: i.getAttribute("src"), ok: i.complete && i.naturalWidth > 0 })));
+  const allLoaded = photos.length === 13 && photos.every((p) => p.ok);
+  check("buy screen shows a loaded image for each of the 13 machines", allLoaded, "images=" + photos.length + " loaded=" + photos.filter((p) => p.ok).length);
+  const relative = photos.every((p) => p.src && !/^(\/|https?:)/.test(p.src));
+  check("machine photos use relative paths", relative);
+  await ensureScreenshot(page, "08-desktop-visuals-tool-and-crew.png");
+  await context.close();
+}
+
+async function scenarioFeatures(browser) {
+  const achSeed = seedBase({ cash: 0, machines: { crew: 20 }, runUnlocked: { crew: true }, tutorial: 99 });
+  let { context, page } = await newPage(browser, { seed: achSeed, viewport: { width: 1280, height: 900 }, label: "ach" });
+  const ach = await waitSave(page, (sv) => sv.achievements && sv.achievements["crew-of-twenty"] === true, 12000);
+  check("Crew of Twenty achievement unlocks from a new save field", !!(ach && ach.achievements["crew-of-twenty"]));
+  await context.close();
+
+  const fleetSeed = seedBase({ cash: 0, machines: { crew: 3, skidder: 1, drone: 1 }, runUnlocked: { crew: true, skidder: true, drone: true }, tutorial: 99 });
+  ({ context, page } = await newPage(browser, { seed: fleetSeed, viewport: { width: 1280, height: 900 }, label: "strip" }));
+  await waitFor(async () => (await page.$$("#fleet-strip img.unit-photo")).length === 3, 3000);
+  const stripOk = await page.$$eval("#fleet-strip img.unit-photo", (imgs) => imgs.length === 3 && imgs.every((i) => i.complete && i.naturalWidth > 0));
+  check("active fleet strip shows a photo for each owned machine type", stripOk);
+  await context.close();
+
+  const sellSeed = seedBase({ cash: 0, timber: 500, runTimber: 500, lifetimeTimber: 500, tutorial: 99 });
+  ({ context, page } = await newPage(browser, { seed: sellSeed, viewport: { width: 1280, height: 900 }, label: "hotkey" }));
+  await sleep(300);
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  await page.keyboard.press("s");
+  const sv = await waitSave(page, (x) => x.timber < 1 && x.cash > 0, 9000);
+  check("S key sells all timber", !!sv && sv.timber < 1 && sv.cash > 0, "timber=" + (sv && sv.timber) + " cash=" + (sv && sv.cash));
+  await context.close();
+
+  ({ context, page } = await newPage(browser, { seed: seedBase({ tutorial: 99 }), viewport: { width: 1280, height: 900 }, label: "cb" }));
+  await sleep(300);
+  await page.click("#tab-settings");
+  await page.click("#set-colorblind");
+  await sleep(150);
+  const onNow = await page.evaluate(() => document.documentElement.classList.contains("cb"));
+  check("colour-blind palette toggles on", onNow);
+  await page.reload({ waitUntil: "load" });
+  await sleep(300);
+  const persisted = await page.evaluate(() => document.documentElement.classList.contains("cb"));
+  const prefs = await page.evaluate(() => JSON.parse(localStorage.getItem("timberline.prefs.v1") || "{}"));
+  check("colour-blind preference survives reload without touching the save", persisted && prefs.colorblind === true && !!(await readSave(page)));
+  await page.click("#tab-settings");
+  await page.click("#set-colorblind");
+  await sleep(100);
+  check("colour-blind palette toggles off", !(await page.evaluate(() => document.documentElement.classList.contains("cb"))));
+  await context.close();
+}
+
+async function waitFor(pred, timeout) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    if (await pred()) return true;
+    await sleep(150);
+  }
+  return false;
+}
+
 async function scenarioTablet(browser) {
   const seed = seedBase({
     cash: 25000,
@@ -609,6 +886,10 @@ async function scenarioTablet(browser) {
     ["offline", scenarioOffline],
     ["mobile", scenarioMobile],
     ["space-hold", scenarioSpaceHold],
+    ["mobile-layout", scenarioMobileLayout],
+    ["touch", scenarioTouch],
+    ["visuals", scenarioVisuals],
+    ["features", scenarioFeatures],
     ["tablet", scenarioTablet]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;

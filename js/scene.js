@@ -348,6 +348,247 @@ LJ.Scene = (function () {
     });
   }
 
+  const CREW_MAX = 6;
+  const MACHINE_MAX = 2;
+  const LOOK = {
+    skidder: { kind: "wheel", body: "#e0a526", scale: 0.8 },
+    grapple: { kind: "wheel", body: "#c96a2b", scale: 0.95, arm: true },
+    feller: { kind: "track", body: "#3b7d4f", scale: 0.95, arm: true },
+    forwarder: { kind: "wheel", body: "#3b7d4f", scale: 1, arm: true },
+    "tigrix-f550": { kind: "track", body: "#f2b632", scale: 1.05, arm: true },
+    harvester: { kind: "wheel", body: "#c62828", scale: 1.1, arm: true },
+    "pondrix-14w": { kind: "wheel", body: "#f2b632", scale: 1.2, arm: true },
+    heavy: { kind: "track", body: "#3b7d4f", scale: 1.2, arm: true },
+    processor: { kind: "wheel", body: "#607d8b", scale: 1.1, arm: true },
+    drone: { kind: "fly", body: "#ff8f00", scale: 0.6 },
+    swarm: { kind: "fly", body: "#ffca28", scale: 0.8 },
+    titan: { kind: "fly", body: "#6a1b9a", scale: 1.2 }
+  };
+  let actors = [];
+  let fleetSig = "";
+  let dust = [];
+
+  function setFleet(s) {
+    const sig = D.machines.map((m) => s.machines[m.id] || 0).join(",");
+    if (sig === fleetSig) return;
+    fleetSig = sig;
+    const prev = new Map(actors.map((a) => [a.key, a]));
+    const slots = [];
+    const crew = Math.min(s.machines.crew || 0, CREW_MAX);
+    for (let i = 0; i < crew; i++) slots.push({ key: "crew#" + i, id: "crew" });
+    for (const m of D.machines) {
+      if (m.id === "crew") continue;
+      const n = Math.min(s.machines[m.id] || 0, MACHINE_MAX);
+      for (let i = 0; i < n; i++) slots.push({ key: m.id + "#" + i, id: m.id });
+    }
+    actors = slots.map((slot) => prev.get(slot.key) || makeActor(slot));
+    if (canvas) {
+      canvas.dataset.crewDrawn = String(crew);
+      canvas.dataset.machinesDrawn = String(slots.length - crew);
+    }
+  }
+
+  function makeActor(slot) {
+    const isCrew = slot.id === "crew";
+    const look = isCrew ? { kind: "crew", body: "#ff7a1a", scale: 1 } : LOOK[slot.id] || LOOK.skidder;
+    const fly = look.kind === "fly";
+    return {
+      key: slot.key,
+      look,
+      kind: look.kind,
+      ly: isCrew ? U.rand(0.8, 0.85) : fly ? U.rand(0.42, 0.56) : U.rand(0.7, 0.76),
+      fx: Math.random(),
+      tx: Math.random(),
+      dir: 1,
+      speed: isCrew ? 0.04 : fly ? 0.05 : 0.03,
+      pause: U.rand(0, 2),
+      moving: false,
+      dist: 0,
+      t: Math.random() * 10,
+      puff: 0
+    };
+  }
+
+  function stepActor(a, dt) {
+    a.t += dt;
+    if (a.pause > 0) {
+      a.pause -= dt;
+      a.moving = false;
+      return;
+    }
+    const d = a.tx - a.fx;
+    if (Math.abs(d) < 0.004) {
+      a.fx = a.tx;
+      a.pause = U.rand(0.6, 2.4);
+      a.tx = U.rand(0.06, 0.94);
+      a.dir = a.tx > a.fx ? 1 : -1;
+      a.moving = false;
+      return;
+    }
+    const step = Math.sign(d) * Math.min(Math.abs(d), a.speed * dt);
+    a.fx += step;
+    a.dir = Math.sign(d);
+    a.dist += Math.abs(step) * 1000;
+    a.moving = true;
+  }
+
+  function drawWheels(a, L, r, spin) {
+    c.strokeStyle = "#90a4ae";
+    c.lineWidth = 2;
+    for (const wx of [-L * 0.32, L * 0.28]) {
+      c.fillStyle = "#1f2a24";
+      c.beginPath();
+      c.arc(wx, -r, r, 0, Math.PI * 2);
+      c.fill();
+      c.beginPath();
+      c.moveTo(wx, -r);
+      c.lineTo(wx + Math.cos(spin) * r * 0.8, -r + Math.sin(spin) * r * 0.8);
+      c.stroke();
+    }
+  }
+
+  function drawBoom(a, L, x0, y0) {
+    const ang = -0.7 + Math.sin(a.t * 1.2) * 0.25;
+    const ex = x0 + Math.cos(ang) * L * 0.6;
+    const ey = y0 + Math.sin(ang) * L * 0.6;
+    c.strokeStyle = a.look.body;
+    c.lineWidth = L * 0.07;
+    c.lineCap = "round";
+    c.beginPath();
+    c.moveTo(x0, y0);
+    c.lineTo(ex, ey);
+    c.stroke();
+    c.fillStyle = "#cfd8dc";
+    c.beginPath();
+    c.arc(ex, ey, L * 0.06, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  function drawWheeled(a, L) {
+    const r = L * 0.14;
+    c.fillStyle = a.look.body;
+    c.fillRect(-L * 0.5, -L * 0.56, L * 0.9, L * 0.3);
+    c.fillStyle = "#263238";
+    c.fillRect(L * 0.1, -L * 0.8, L * 0.3, L * 0.26);
+    c.fillStyle = "#b3e5fc";
+    c.fillRect(L * 0.16, -L * 0.76, L * 0.18, L * 0.12);
+    if (a.look.arm) drawBoom(a, L, -L * 0.2, -L * 0.6);
+    drawWheels(a, L, r, a.dist * 0.08);
+  }
+
+  function drawTracked(a, L) {
+    c.fillStyle = "#1f2a24";
+    c.fillRect(-L * 0.5, -L * 0.2, L, L * 0.2);
+    c.fillStyle = "#546e7a";
+    for (let i = 0; i < 5; i++) {
+      c.beginPath();
+      c.arc(-L * 0.4 + i * L * 0.2, -L * 0.1, L * 0.05, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.fillStyle = a.look.body;
+    c.fillRect(-L * 0.42, -L * 0.46, L * 0.84, L * 0.28);
+    c.fillStyle = "#263238";
+    c.fillRect(L * 0.05, -L * 0.7, L * 0.3, L * 0.26);
+    c.fillStyle = "#b3e5fc";
+    c.fillRect(L * 0.11, -L * 0.66, L * 0.18, L * 0.12);
+    if (a.look.arm) drawBoom(a, L, -L * 0.1, -L * 0.46);
+  }
+
+  function drawFlying(a, L) {
+    const bob = Math.sin(a.t * 2) * L * 0.05;
+    c.translate(0, bob);
+    c.strokeStyle = "#90a4ae";
+    c.lineWidth = L * 0.04;
+    for (const rx of [-L * 0.4, L * 0.4]) {
+      c.beginPath();
+      c.moveTo(0, 0);
+      c.lineTo(rx, -L * 0.14);
+      c.stroke();
+      c.fillStyle = "rgba(207,216,220,0.45)";
+      c.beginPath();
+      c.ellipse(rx, -L * 0.16, L * (0.12 + 0.26 * Math.abs(Math.cos(a.t * 30))), L * 0.035, 0, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.fillStyle = a.look.body;
+    c.beginPath();
+    c.ellipse(0, 0, L * 0.2, L * 0.12, 0, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = "#cfd8dc";
+    c.fillRect(-L * 0.05, L * 0.1, L * 0.1, L * 0.06);
+  }
+
+  function drawCrew(a, H) {
+    const stride = a.moving ? Math.sin(a.dist * 0.05) : 0;
+    c.lineCap = "round";
+    c.strokeStyle = "#263238";
+    c.lineWidth = H * 0.1;
+    c.beginPath();
+    c.moveTo(-H * 0.08, -H * 0.42);
+    c.lineTo(-H * 0.08 + stride * H * 0.18, 0);
+    c.moveTo(H * 0.08, -H * 0.42);
+    c.lineTo(H * 0.08 - stride * H * 0.18, 0);
+    c.stroke();
+    c.fillStyle = "#ff7a1a";
+    c.fillRect(-H * 0.17, -H * 0.78, H * 0.34, H * 0.4);
+    c.fillStyle = "#e0e0e0";
+    c.fillRect(-H * 0.17, -H * 0.5, H * 0.34, H * 0.05);
+    c.strokeStyle = "#ff7a1a";
+    c.lineWidth = H * 0.09;
+    c.beginPath();
+    c.moveTo(H * 0.14, -H * 0.7);
+    c.lineTo(H * 0.3, -H * 0.45 + Math.sin(a.t * 6) * H * 0.08);
+    c.stroke();
+    c.fillStyle = "#e0b08a";
+    c.beginPath();
+    c.arc(0, -H * 0.9, H * 0.1, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = "#ffd166";
+    c.beginPath();
+    c.arc(0, -H * 0.94, H * 0.11, Math.PI, 0);
+    c.fill();
+  }
+
+  function drawFleet(dt) {
+    if (!actors.length || !w || !h) return;
+    const L = Math.min(w * 0.14, h * 0.22);
+    const H = Math.min(h * 0.14, w * 0.07);
+    for (const a of actors) {
+      stepActor(a, dt);
+      const x = a.fx * w;
+      const y = a.ly * h;
+      const size = a.kind === "crew" ? H : L * a.look.scale;
+      if (a.moving && (a.kind === "wheel" || a.kind === "track")) {
+        a.puff -= dt;
+        if (a.puff <= 0) {
+          a.puff = 0.35;
+          dust.push({ x, y, life: 0.8, max: 0.8, r: size * 0.12 });
+          if (dust.length > 60) dust.shift();
+        }
+      }
+      c.save();
+      c.translate(x, y);
+      if (a.dir < 0) c.scale(-1, 1);
+      if (a.kind === "crew") drawCrew(a, H);
+      else if (a.kind === "wheel") drawWheeled(a, size);
+      else if (a.kind === "track") drawTracked(a, size);
+      else drawFlying(a, size);
+      c.restore();
+    }
+    dust = dust.filter((p) => {
+      p.life -= dt;
+      if (p.life <= 0) return false;
+      const k = p.life / p.max;
+      c.save();
+      c.globalAlpha = k * 0.5;
+      c.fillStyle = "#d7c9a5";
+      c.beginPath();
+      c.arc(p.x - (1 - k) * 14, p.y, p.r * (1.4 - k * 0.4), 0, Math.PI * 2);
+      c.fill();
+      c.restore();
+      return true;
+    });
+  }
+
   function render(now) {
     const dt = lastFrame ? Math.min(0.05, (now - lastFrame) / 1000) : 0;
     lastFrame = now;
@@ -360,10 +601,11 @@ LJ.Scene = (function () {
     drawGround();
     drawStumps(dt);
     drawLivingTree(dt);
+    drawFleet(dt);
     drawAmbient(dt);
     drawParticles(dt);
     drawTexts(dt);
   }
 
-  return { init, resize, setZone, chopAt, autoHit, fellTree, render };
+  return { init, resize, setZone, setFleet, chopAt, autoHit, fellTree, render };
 })();

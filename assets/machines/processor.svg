@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-label="Multi-head processor illustration">
+  <rect width="240" height="180" fill="#2c4a3a"/>
+  <rect y="128" width="240" height="52" fill="#3d5a3a"/>
+  <rect x="34" y="112" width="132" height="26" rx="6" fill="#f2b632"/>
+  <rect x="44" y="96" width="62" height="22" rx="4" fill="#e9a21d"/>
+  <rect x="50" y="138" width="22" height="22" rx="11" fill="#1f2a24"/>
+  <rect x="124" y="138" width="22" height="22" rx="11" fill="#1f2a24"/>
+  <path d="M150 112 L184 60 L202 66" fill="none" stroke="#f2b632" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#cfd8dc">
+    <circle cx="206" cy="66" r="12"/>
+    <rect x="186" y="82" width="36" height="5" rx="2" transform="rotate(-18 204 84)"/>
+    <rect x="186" y="92" width="36" height="5" rx="2" transform="rotate(-18 204 94)"/>
+    <rect x="186" y="102" width="36" height="5" rx="2" transform="rotate(-18 204 104)"/>
+  </g>
+  <rect x="26" y="150" width="184" height="6" rx="3" fill="#8d6e63"/>
+  <rect x="34" y="156" width="24" height="5" rx="2" fill="#8d6e63"/>
+  <rect x="150" y="156" width="24" height="5" rx="2" fill="#8d6e63"/>
+  <g fill="#c98b4e">
+    <rect x="24" y="142" width="16" height="8" rx="2"/>
+  </g>
+</svg>

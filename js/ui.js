@@ -112,8 +112,21 @@ LJ.UI = (function () {
       p.btn.hidden = true;
       return;
     }
-    p.icon.hidden = !it.icon;
-    setText(p.icon, it.icon || "");
+    p.icon.hidden = !it.icon && !it.photo;
+    setText(p.icon, it.photo ? "" : it.icon || "");
+    p.icon.classList.toggle("has-photo", !!it.photo);
+    if (it.photo) {
+      if (!p.photo) {
+        p.photo = create("img", "card-photo");
+        p.photo.alt = "";
+        p.photo.decoding = "async";
+        p.icon.appendChild(p.photo);
+      }
+      if (p.photo.getAttribute("src") !== it.photo) p.photo.src = it.photo;
+    } else if (p.photo) {
+      p.photo.remove();
+      p.photo = null;
+    }
     setText(p.name, it.name);
     p.desc.hidden = !it.desc;
     setText(p.desc, it.desc || "");
@@ -242,6 +255,25 @@ LJ.UI = (function () {
   }
 
   let fleetSignature = "";
+  let toolbarSignature = "";
+  function renderToolbar(s) {
+    const sig = String(s.tool);
+    if (sig === toolbarSignature) return;
+    toolbarSignature = sig;
+    const bar = el("scene-tools");
+    bar.textContent = "";
+    D.tools.forEach((t, i) => {
+      if (i > s.tool) return;
+      const equipped = i === s.tool;
+      const b = create("span", "scene-tool" + (equipped ? " is-equipped" : ""), t.icon);
+      b.dataset.toolId = t.id;
+      b.title = t.name + (equipped ? " (equipped)" : "");
+      b.setAttribute("role", "img");
+      b.setAttribute("aria-label", t.name + (equipped ? ", equipped" : ""));
+      bar.appendChild(b);
+    });
+  }
+
   function renderFleetStrip(s, st) {
     const parts = D.machines.map((m) => (s.machines[m.id] || 0) + ":" + (s.overhauls[m.id] || 0));
     const sig = parts.join("|");
@@ -256,7 +288,16 @@ LJ.UI = (function () {
       const unit = create("div", "unit");
       unit.style.setProperty("--i", String(idx++));
       unit.title = m.name + " ×" + n;
-      unit.append(create("span", "unit-icon", m.icon), create("span", "unit-count", "×" + U.fmt(n)));
+      let icon;
+      if (m.photo) {
+        icon = create("img", "unit-photo");
+        icon.alt = "";
+        icon.decoding = "async";
+        icon.src = m.photo;
+      } else {
+        icon = create("span", "unit-icon", m.icon);
+      }
+      unit.append(icon, create("span", "unit-count", "×" + U.fmt(n)));
       strip.appendChild(unit);
     }
     if (!idx) {
@@ -291,6 +332,7 @@ LJ.UI = (function () {
         return {
           key: "m-" + m.id,
           icon: "🔒",
+          photo: m.photo,
           name: m.name,
           desc: "Reach " + U.fmt(m.unlock) + " run timber to unlock.",
           state: "locked",
@@ -309,6 +351,7 @@ LJ.UI = (function () {
       return {
         key: "m-" + m.id,
         icon: m.icon,
+        photo: m.photo,
         name: m.name,
         desc: m.blurb,
         meta:
@@ -556,6 +599,7 @@ LJ.UI = (function () {
     const st = E.stats(s);
     renderTop(s, st);
     renderStage(s, st);
+    renderToolbar(s);
     renderContract(s);
     renderFleetStrip(s, st);
     renderBadges(s, st);
@@ -821,6 +865,7 @@ LJ.UI = (function () {
     }
     el("rp-btn").addEventListener("click", openReplant);
     el("set-sound").addEventListener("click", toggleSound);
+    el("set-colorblind").addEventListener("click", toggleColorblind);
     el("btn-sound").addEventListener("click", toggleSound);
     el("btn-help").addEventListener("click", startTutorial);
     el("set-help").addEventListener("click", startTutorial);
@@ -835,6 +880,40 @@ LJ.UI = (function () {
       game.s.tutorial = TUTORIAL.length;
       refresh();
     });
+  }
+
+  const PREFS_KEY = "timberline.prefs.v1";
+  let prefs = readPrefs();
+
+  function readPrefs() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(PREFS_KEY));
+      return raw && typeof raw === "object" ? raw : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function savePrefs() {
+    try {
+      localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
+    } catch (e) {
+      /* storage can be full or disabled; the palette still applies for this visit */
+    }
+  }
+
+  function applyPrefs() {
+    const on = prefs.colorblind === true;
+    document.documentElement.classList.toggle("cb", on);
+    const b = el("set-colorblind");
+    setText(b, "Colour-blind palette: " + (on ? "on" : "off"));
+    b.setAttribute("aria-pressed", String(on));
+  }
+
+  function toggleColorblind() {
+    prefs.colorblind = !(prefs.colorblind === true);
+    savePrefs();
+    applyPrefs();
   }
 
   function toggleSound() {
@@ -853,6 +932,7 @@ LJ.UI = (function () {
     game = g;
     bind();
     A.setOn(game.s.sound);
+    applyPrefs();
     switchTab(activeTab);
   }
 

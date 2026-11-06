@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-label="Titan fleet unit illustration">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a148c"/>
+      <stop offset="1" stop-color="#0d1b2a"/>
+    </linearGradient>
+  </defs>
+  <rect width="240" height="180" fill="url(#g)"/>
+  <g fill="#fff" opacity=".7">
+    <circle cx="28" cy="24" r="1.5"/><circle cx="200" cy="30" r="1.5"/>
+    <circle cx="170" cy="18" r="1"/><circle cx="48" cy="60" r="1"/>
+  </g>
+  <rect y="136" width="240" height="44" fill="#1b2a3a"/>
+  <rect x="50" y="78" width="140" height="58" rx="8" fill="#6a1b9a" stroke="#e1bee7" stroke-width="2"/>
+  <rect x="78" y="56" width="84" height="24" rx="6" fill="#4527a0"/>
+  <circle cx="92" cy="58" r="7" fill="#80deea"/>
+  <circle cx="148" cy="58" r="7" fill="#80deea"/>
+  <path d="M190 104 A38 38 0 0 1 190 140" fill="none" stroke="#ffd54f" stroke-width="7" stroke-linecap="round"/>
+  <path d="M190 90 L210 104 L190 118" fill="none" stroke="#ffd54f" stroke-width="5" stroke-linejoin="round"/>
+  <rect x="36" y="128" width="168" height="16" rx="8" fill="#263238"/>
+  <g fill="#78909c">
+    <circle cx="52" cy="136" r="5"/><circle cx="76" cy="136" r="5"/><circle cx="100" cy="136" r="5"/>
+    <circle cx="124" cy="136" r="5"/><circle cx="148" cy="136" r="5"/><circle cx="172" cy="136" r="5"/>
+  </g>
+</svg>
