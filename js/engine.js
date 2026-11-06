@@ -89,7 +89,8 @@ LJ.Engine = (function () {
         nodes: {},
         achievements: {},
         auto: { sell: false, fell: false, buy: false },
-        autoSellMin: 0
+        autoSellMin: 0,
+        autoProd: false
       },
       runDefaults()
     );
@@ -147,6 +148,7 @@ LJ.Engine = (function () {
       buy: !!(raw.auto && raw.auto.buy)
     };
     s.autoSellMin = SELL_FLOORS.includes(Number(raw.autoSellMin)) ? Number(raw.autoSellMin) : 0;
+    s.autoProd = !!raw.autoProd;
     s.tool = U.clamp(Math.floor(Number(raw.tool) || 0), 0, D.tools.length - 1);
     s.zone = U.clamp(Math.floor(Number(raw.zone) || 0), 0, D.zones.length - 1);
     s.events = Array.isArray(raw.events)
@@ -399,6 +401,32 @@ LJ.Engine = (function () {
     return true;
   }
 
+  function prodUnlocked(s) {
+    return s.replants >= 1;
+  }
+
+  function sendAllToProduction(s) {
+    if (!prodUnlocked(s)) return 0;
+    return LJ.Production.send(s, s.timber);
+  }
+
+  function toggleAutoProd(s) {
+    if (!prodUnlocked(s)) return false;
+    s.autoProd = !s.autoProd;
+    return true;
+  }
+
+  function routeToProduction(s, st) {
+    if (!prodUnlocked(s) || !(s.timber > 0)) return 0;
+    LJ.Production.send(s, s.timber);
+    if (!(s.timber > 0) || !sellFloorOpen(s, st)) return 0;
+    const overflow = s.timber;
+    const gain = sell(s, st, true);
+    s.prod.overflow += overflow;
+    s.prod.overflowCash += gain;
+    return gain;
+  }
+
   function replantRequirement(s) {
     return REPLANT_BASE * Math.pow(REPLANT_GROWTH, s.replants);
   }
@@ -573,6 +601,7 @@ LJ.Engine = (function () {
         hit(s, st, true);
       }
     }
+    if (s.autoProd) routeToProduction(s, st);
     if (autoOn(s, "sell") && s.timber > 0 && sellFloorOpen(s, st)) sell(s, st, true);
     s.marketTimer += dt;
     while (s.marketTimer >= 4) {
@@ -603,7 +632,14 @@ LJ.Engine = (function () {
     s.playtime += secs;
     let cash = 0;
     const selling = autoOn(s, "sell") && sellFloorOpen(s, st);
-    if (selling) {
+    let kept = selling ? 0 : produced;
+    if (s.autoProd && prodUnlocked(s)) {
+      const before = s.timber;
+      addTimber(s, produced);
+      cash += routeToProduction(s, st);
+      if (autoOn(s, "sell") && sellFloorOpen(s, st)) cash += sell(s, st, true);
+      kept = Math.max(0, s.timber - before);
+    } else if (selling) {
       cash = produced * st.price;
       s.cash += cash;
       s.cashEarned += cash;
@@ -617,7 +653,7 @@ LJ.Engine = (function () {
     cash += s.cash - prodBefore;
     checkUnlocks(s);
     checkAchievements(s);
-    return { seconds: secs, timber: selling ? 0 : produced, cash, eff };
+    return { seconds: secs, timber: kept, cash, eff };
   }
 
   function save(s, now) {
@@ -687,6 +723,9 @@ LJ.Engine = (function () {
     sellFloorOpen,
     setSellFloor,
     SELL_FLOORS,
+    prodUnlocked,
+    sendAllToProduction,
+    toggleAutoProd,
     replantGain,
     replantRequirement,
     canReplant,

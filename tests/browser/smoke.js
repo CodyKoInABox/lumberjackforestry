@@ -977,10 +977,87 @@ async function scenarioSellFloor(browser) {
   await context.close();
 }
 
+async function scenarioAutoProduction(browser) {
+  const viewport = { width: 1280, height: 900 };
+  const base = { replants: 1, cash: 0, timber: 1000, tutorial: 99 };
+
+  let { context, page } = await newPage(browser, {
+    seed: seedBase({ ...base, autoProd: true, prod: { queue: 300, warehouses: 0, factories: 0, nextLine: 1, lines: [] } }),
+    viewport,
+    label: "autoprod-full"
+  });
+  const overflowSold = await waitSave(page, (sv) => sv.prod && sv.prod.overflow > 0 && sv.timber < 1, 9000);
+  check(
+    "with production full, the overflow is sold",
+    !!overflowSold && Math.abs(overflowSold.prod.overflow - 1000) < 1e-6 && overflowSold.cash > 0 && overflowSold.prod.queue === 300,
+    "overflow=" + (overflowSold && overflowSold.prod.overflow) + " cash=" + (overflowSold && overflowSold.cash)
+  );
+  await context.close();
+
+  ({ context, page } = await newPage(browser, {
+    seed: seedBase({ ...base, autoProd: true, prod: { queue: 0, warehouses: 0, factories: 0, nextLine: 1, lines: [] } }),
+    viewport,
+    label: "autoprod-room"
+  }));
+  const split = await waitSave(page, (sv) => sv.prod && sv.prod.overflow > 0 && sv.timber < 1, 9000);
+  check(
+    "with room, production takes what fits and the rest is sold",
+    !!split && Math.abs(split.prod.queue - 300) < 1e-6 && Math.abs(split.prod.overflow - 700) < 1e-6,
+    "queue=" + (split && split.prod.queue) + " overflow=" + (split && split.prod.overflow)
+  );
+  await context.close();
+
+  ({ context, page } = await newPage(browser, {
+    seed: seedBase({
+      ...base,
+      autoProd: true,
+      nodes: { mkt2: true, mkt5: true },
+      auto: { sell: true },
+      autoSellMin: 1.2,
+      market: { price: 1, hist: [1] },
+      prod: { queue: 0, warehouses: 0, factories: 0, nextLine: 1, lines: [] }
+    }),
+    viewport,
+    label: "autoprod-floor"
+  }));
+  const startedAt = Date.now();
+  const held = await waitSave(page, (sv) => sv.savedAt > startedAt + 4500, 12000);
+  check(
+    "a closed floor holds the overflow while production still fills",
+    !!held && Math.abs(held.prod.queue - 300) < 1e-6 && Math.abs(held.timber - 700) < 1e-6 && held.prod.overflow === 0 && held.cash === 0,
+    "queue=" + (held && held.prod.queue) + " timber=" + (held && held.timber) + " cash=" + (held && held.cash)
+  );
+  await context.close();
+
+  ({ context, page } = await newPage(browser, {
+    seed: seedBase({ ...base, prod: { queue: 0, warehouses: 0, factories: 0, nextLine: 1, lines: [] } }),
+    viewport,
+    label: "autoprod-manual"
+  }));
+  await sleep(300);
+  check("the main tab offers a send to production choice", !(await page.$eval("#route-group", (n) => n.hidden)));
+  await page.click("#btn-send-prod");
+  const manual = await waitSave(page, (sv) => sv.prod && sv.prod.queue > 0, 9000);
+  check("the main-tab send moves timber into production", !!manual && Math.abs(manual.timber - 700) < 1e-6 && Math.abs(manual.prod.queue - 300) < 1e-6);
+  await page.click("#btn-autoprod");
+  const toggled = await waitSave(page, (sv) => sv.autoProd === true, 9000);
+  check("the auto overflow toggle saves on", !!toggled);
+  check("the main tab shows the sent and sold split", (await text(page, "#route-status")).includes("To production: 300"), await text(page, "#route-status"));
+  await ensureScreenshot(page, "auto-production-main.png");
+  await context.close();
+
+  ({ context, page } = await newPage(browser, { seed: seedBase({ timber: 500, tutorial: 99 }), viewport, label: "autoprod-locked" }));
+  await sleep(300);
+  check("the send choice stays hidden before the first replant", await page.$eval("#route-group", (n) => n.hidden));
+  await context.close();
+}
+
 async function scenarioProductionMobile(browser) {
   for (const vp of MOBILE_VIEWPORTS) {
     const { context, page } = await newPage(browser, { seed: productionSeed(), viewport: { width: vp.width, height: vp.height }, label: "prod-" + vp.name });
     await sleep(500);
+    const mainReport = await layoutReport(page);
+    check("[production " + vp.name + "] main-tab send controls fit with 44px targets", mainReport.overflow <= 1 && mainReport.small.length === 0, mainReport.small.length ? "small: " + mainReport.small.slice(0, 4).map((t) => t.label + " " + t.w + "x" + t.h).join("; ") : "overflow=" + mainReport.overflow);
     await page.click("#tab-production");
     await sleep(300);
     const report = await layoutReport(page);
@@ -1046,6 +1123,7 @@ async function scenarioTablet(browser) {
     ["production", scenarioProduction],
     ["production-mobile", scenarioProductionMobile],
     ["sell-floor", scenarioSellFloor],
+    ["auto-production", scenarioAutoProduction],
     ["tablet", scenarioTablet]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;

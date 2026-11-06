@@ -590,6 +590,7 @@ LJ.UI = (function () {
     const st = E.stats(s);
     renderTop(s, st);
     renderStage(s, st);
+    LJ.ProductionUI.renderRouting(s, st);
     renderContract(s);
     renderFleetStrip(s, st);
     renderBadges(s, st);
