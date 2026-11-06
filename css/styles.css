@@ -779,6 +779,51 @@ textarea {
   color: var(--ink-soft);
 }
 
+.bio-list {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.bio-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(60px, 0.9fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  min-height: 28px;
+}
+
+.bio-row.here .bio-name {
+  color: var(--amber);
+  font-weight: 800;
+}
+
+.bio-name,
+.bio-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bio-value {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.bio-track {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.bio-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--mint), #a6f0b9);
+  border-radius: 4px;
+}
+
 .rp-gain {
   margin: 12px 0;
   font-size: 13px;

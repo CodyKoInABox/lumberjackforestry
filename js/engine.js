@@ -10,6 +10,8 @@ LJ.Engine = (function () {
   const REPLANT_BASE = 1e7;
   const REPLANT_GROWTH = 2.2;
   const OVERHAUL_MAX = 3;
+  const BIO_PER_REPLANT = 15;
+  const BIO_LOSS_PER_FELL = 0.02;
   const SELL_FLOORS = [0, 0.8, 1, 1.2, 1.5];
   const bus = [];
   let savesLocked = false;
@@ -90,7 +92,8 @@ LJ.Engine = (function () {
         achievements: {},
         auto: { sell: false, fell: false, buy: false },
         autoSellMin: 0,
-        autoProd: false
+        autoProd: false,
+        bio: {}
       },
       runDefaults()
     );
@@ -149,6 +152,13 @@ LJ.Engine = (function () {
     };
     s.autoSellMin = SELL_FLOORS.includes(Number(raw.autoSellMin)) ? Number(raw.autoSellMin) : 0;
     s.autoProd = !!raw.autoProd;
+    s.bio = {};
+    if (raw.bio && typeof raw.bio === "object") {
+      for (const z of D.zones) {
+        const v = Number(raw.bio[z.id]);
+        if (Number.isFinite(v) && v > 0) s.bio[z.id] = Math.min(100, v);
+      }
+    }
     s.tool = U.clamp(Math.floor(Number(raw.tool) || 0), 0, D.tools.length - 1);
     s.zone = U.clamp(Math.floor(Number(raw.zone) || 0), 0, D.zones.length - 1);
     s.events = Array.isArray(raw.events)
@@ -197,7 +207,7 @@ LJ.Engine = (function () {
     const gm = seedMult * (n.sus2 ? 1.1 : 1) * (1 + 0.01 * ach);
     const hydro = (n.hyd1 ? 0.15 : 0) + (n.hyd2 ? 0.25 : 0) + (n.hyd3 ? 0.6 : 0) + (n.hyd4 ? 1 : 0);
     const machineMult =
-      (1 + hydro) * (n.sus3 ? 1.2 : 1) * gm * (ev.beetle ? 0.75 : 1) * (ev.sunny ? 1.2 : 1);
+      (1 + hydro) * (n.sus3 ? 1.2 : 1) * gm * (ev.beetle ? 0.75 : 1) * (ev.sunny ? 1.2 : 1) * (1 + biodiversity(s, s.zone) / 200);
     const millBonus = D.sawmill.reduce((acc, m) => acc + (s.mill[m.id] ? m.price : 0), 0);
     const price =
       s.market.price * (1 + (n.mkt1 ? 0.15 : 0) + (n.mkt3 ? 0.4 : 0) + millBonus) * (ev.boom ? 1.6 : 1);
@@ -263,8 +273,14 @@ LJ.Engine = (function () {
     return { gain, crit };
   }
 
+  function biodiversity(s, zoneIdx) {
+    return s.bio[D.zones[zoneIdx].id] || 0;
+  }
+
   function fell(s) {
     const z = D.zones[s.tree.zone];
+    const id = z.id;
+    s.bio[id] = Math.max(0, (s.bio[id] || 0) - BIO_LOSS_PER_FELL);
     s.trees++;
     s.research += z.research;
     s.researchEarned += z.research;
@@ -442,6 +458,8 @@ LJ.Engine = (function () {
   function replant(s, now) {
     if (!canReplant(s)) return 0;
     const gain = replantGain(s);
+    const zoneId = D.zones[s.zone].id;
+    s.bio[zoneId] = Math.min(100, (s.bio[zoneId] || 0) + BIO_PER_REPLANT);
     s.seedlings += gain;
     s.replants++;
     Object.assign(s, runDefaults());
@@ -705,6 +723,7 @@ LJ.Engine = (function () {
     normalize,
     stats,
     seedMultiplier,
+    biodiversity,
     tick,
     hit,
     sell,
