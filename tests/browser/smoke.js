@@ -1102,6 +1102,76 @@ async function scenarioTablet(browser) {
   await context.close();
 }
 
+async function scenarioCertification(browser) {
+  const certSeed = (replants, extra) =>
+    seedBase(Object.assign({ replants, tutorial: 99 }, extra || {}));
+
+  const { context, page } = await newPage(browser, { seed: certSeed(4), label: "cert-4" });
+  await sleep(300);
+  await page.click("#tab-replant");
+  await sleep(200);
+  check(
+    "4 replants is uncertified at 20 points",
+    (await text(page, "#rp-cert")) === "Uncertified · 20 / 100 · +2% sale price",
+    await text(page, "#rp-cert")
+  );
+  await context.close();
+
+  const { context: c5, page: p5 } = await newPage(browser, { seed: certSeed(5), label: "cert-5" });
+  await sleep(300);
+  await p5.click("#tab-replant");
+  await sleep(200);
+  await ensureScreenshot(p5, "certification-bronze.png");
+  check(
+    "5 replants is Bronze at 25 points",
+    (await text(p5, "#rp-cert")) === "Bronze · 25 / 100 · +2.5% sale price",
+    await text(p5, "#rp-cert")
+  );
+  await c5.close();
+
+  const { context: c20, page: p20 } = await newPage(browser, { seed: certSeed(20), label: "cert-20" });
+  await sleep(300);
+  const prices = await p20.evaluate(() => {
+    const price = (replants) =>
+      LJ.Engine.stats(LJ.Engine.normalize({ v: 1, replants, market: { price: 1, hist: [1] } }, Date.now())).price;
+    return { none: price(0), platinum: price(20) };
+  });
+  check(
+    "a full certification adds 10% to sale price",
+    Math.abs(prices.platinum / prices.none - 1.1) < 1e-9,
+    JSON.stringify(prices)
+  );
+  await c20.close();
+
+  const { context: rc, page: rp } = await newPage(browser, {
+    seed: certSeed(0, { runTimber: 1e7, lifetimeTimber: 1e7 }),
+    label: "cert-replant"
+  });
+  await sleep(300);
+  await rp.click("#tab-replant");
+  await rp.click("#rp-btn");
+  await rp.click("#modal-root .modal-foot .btn.primary");
+  const after = await waitSave(rp, (s) => s.replants === 1, 6000);
+  check("a replant adds 5 certification points", !!after && after.replants === 1, after ? "replants=" + after.replants : "no save");
+  await sleep(200);
+  check(
+    "the Replant tab shows the new certification score",
+    (await text(rp, "#rp-cert")) === "Uncertified · 5 / 100 · +0.5% sale price",
+    await text(rp, "#rp-cert")
+  );
+  await rc.close();
+
+  const { context: mc, page: mp } = await newPage(browser, {
+    seed: certSeed(20), viewport: { width: 360, height: 740 }, touch: true, label: "cert-mobile"
+  });
+  await sleep(300);
+  await mp.tap("#tab-replant");
+  await sleep(300);
+  const overflow = await mp.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  check("360px: certification row has no horizontal overflow", overflow <= 1, "overflow=" + overflow);
+  await mc.close();
+}
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: CHROME || undefined,
@@ -1124,7 +1194,8 @@ async function scenarioTablet(browser) {
     ["production-mobile", scenarioProductionMobile],
     ["sell-floor", scenarioSellFloor],
     ["auto-production", scenarioAutoProduction],
-    ["tablet", scenarioTablet]
+    ["tablet", scenarioTablet],
+    ["certification", scenarioCertification]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
   for (const [name, fn] of suites) {

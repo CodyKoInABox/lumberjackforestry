@@ -75,6 +75,15 @@ LJ.DATA = {
     { id: "mill-export", name: "Export Terminal", icon: "🚢", cost: 4000000, price: 0.6, blurb: "Ships to every continent. +60% sale price." }
   ],
 
+  // Sustainable certification: 5 points per replant, up to 100. Each point adds 0.1% sale price.
+  certTiers: [
+    { id: "none", name: "Uncertified", min: 0 },
+    { id: "bronze", name: "Bronze", min: 25 },
+    { id: "silver", name: "Silver", min: 50 },
+    { id: "gold", name: "Gold", min: 75 },
+    { id: "platinum", name: "Platinum", min: 100 }
+  ],
+
   zones: [
     {
       id: "sapling", name: "Sapling Hill", unlock: 0, hp: 12, research: 0.05, tree: "sapling", size: 0.62,
