@@ -363,37 +363,6 @@ textarea {
 
 /* Stage foot */
 
-.tool-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.18);
-}
-
-.tool-bar:empty {
-  display: none;
-}
-
-.scene-tool {
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  font-size: 22px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.3);
-}
-
-.scene-tool.is-equipped {
-  border-color: var(--amber);
-  box-shadow: 0 0 0 2px rgba(255, 196, 92, 0.35);
-  transform: translateY(-2px);
-}
-
 .card-icon.has-photo {
   padding: 0;
   overflow: hidden;
@@ -1299,14 +1268,6 @@ textarea {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
-}
-
-.unit-photo {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  object-fit: cover;
-  display: block;
 }
 
 html.cb {
