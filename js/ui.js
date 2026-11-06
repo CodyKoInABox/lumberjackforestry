@@ -471,6 +471,9 @@ LJ.UI = (function () {
     const gain = E.replantGain(s);
     setText(el("rp-seeds"), U.fmt(s.seedlings));
     setText(el("rp-bonus"), "+" + U.fmt(Math.round((E.seedMultiplier(s) - 1) * 100)) + "% output");
+    const cert = E.certification(s);
+    const tier = E.certTier(s);
+    setText(el("rp-cert"), tier.name + " · " + cert + " / 100 · +" + U.fmt(cert / 10) + "% sale price");
     setText(el("rp-run"), U.fmt(s.runTimber));
     const need = E.replantRequirement(s);
     setText(el("rp-need"), U.fmt(need));
