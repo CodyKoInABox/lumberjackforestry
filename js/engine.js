@@ -197,7 +197,7 @@ LJ.Engine = (function () {
     const gm = seedMult * (n.sus2 ? 1.1 : 1) * (1 + 0.01 * ach);
     const hydro = (n.hyd1 ? 0.15 : 0) + (n.hyd2 ? 0.25 : 0) + (n.hyd3 ? 0.6 : 0) + (n.hyd4 ? 1 : 0);
     const machineMult =
-      (1 + hydro) * (n.sus3 ? 1.2 : 1) * gm * (ev.beetle ? 0.75 : 1) * (ev.sunny ? 1.2 : 1);
+      (1 + hydro) * (n.sus3 ? 1.2 : 1) * gm * (ev.beetle ? 0.75 : 1) * (ev.sunny ? 1.2 : 1) * (ev.fire ? (n.sus5 ? 0.75 : 0.5) : 1);
     const millBonus = D.sawmill.reduce((acc, m) => acc + (s.mill[m.id] ? m.price : 0), 0);
     const price =
       s.market.price * (1 + (n.mkt1 ? 0.15 : 0) + (n.mkt3 ? 0.4 : 0) + millBonus) * (ev.boom ? 1.6 : 1);
