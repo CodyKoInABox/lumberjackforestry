@@ -548,9 +548,11 @@ LJ.Engine = (function () {
     const bonus = s.nodes.crw4 ? 1.25 : 1;
     const zoneMul = 1 + s.zone;
     const research = 1 + Math.floor(s.zone / 2);
+    const saleRate = st.total * st.price;
+    const pay = (c.pay || 0) * saleRate;
     if (c.kind === "deliver") return { cash: c.target * st.price * 1.5 * bonus, research };
-    if (c.kind === "click") return { cash: c.target * 40 * zoneMul * bonus, research };
-    return { cash: c.target * 300 * zoneMul * bonus, research };
+    if (c.kind === "click") return { cash: Math.max(c.target * 40 * zoneMul, pay) * bonus, research };
+    return { cash: Math.max(c.target * 300 * zoneMul, pay) * bonus, research };
   }
 
   function updateContracts(s, dt, st) {
@@ -584,6 +586,7 @@ LJ.Engine = (function () {
       icon: tpl.icon,
       desc: tpl.desc.replace("{amount}", U.fmt(target)),
       target,
+      pay: tpl.pay || 0,
       progress: 0,
       left: tpl.time
     };

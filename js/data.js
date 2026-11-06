@@ -158,10 +158,11 @@ LJ.DATA = {
     { id: "windfall", name: "Auction Windfall", icon: "💰", desc: "Instant cash worth about a minute of output.", instant: true, weight: 1 }
   ],
 
+  // pay: seconds of current sale income, used when it beats the fixed zone reward.
   contractTemplates: [
     { kind: "deliver", title: "Pulpwood Order", icon: "📦", desc: "Deliver {amount} timber to the mill.", mult: [1, 1.2], time: 240 },
-    { kind: "click", title: "Rush Felling", icon: "🪓", desc: "Land {amount} taps within the window.", mult: [1, 1.5], time: 120 },
-    { kind: "machines", title: "Fleet Hire", icon: "🧑‍🔧", desc: "Hire {amount} machines in total.", mult: [1, 1.3], time: 300 }
+    { kind: "click", title: "Rush Felling", icon: "🪓", desc: "Land {amount} taps within the window.", mult: [1, 1.5], time: 120, pay: 75 },
+    { kind: "machines", title: "Fleet Hire", icon: "🧑‍🔧", desc: "Hire {amount} machines in total.", mult: [1, 1.3], time: 300, pay: 90 }
   ],
 
   achievements: [

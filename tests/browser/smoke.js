@@ -1102,6 +1102,49 @@ async function scenarioTablet(browser) {
   await context.close();
 }
 
+async function scenarioLateContracts(browser) {
+  const machines = { crew: 30, skidder: 20, feller: 20, grapple: 15, forwarder: 10, harvester: 5 };
+  const runUnlocked = Object.fromEntries(Object.keys(machines).map((id) => [id, true]));
+  const cases = [
+    { kind: "click", title: "Rush Felling", icon: "🪓", desc: "Land 5 taps within the window.", target: 5, pay: 75, oldMul: 40 },
+    { kind: "machines", title: "Fleet Hire", icon: "🧑‍🔧", desc: "Hire 3 machines in total.", target: 3, pay: 90, oldMul: 300 }
+  ];
+  for (const c of cases) {
+    const seed = seedBase({
+      zone: 4,
+      replants: 2,
+      tool: 5,
+      runTimber: 6e7,
+      lifetimeTimber: 6e7,
+      machines,
+      runUnlocked,
+      contract: { kind: c.kind, title: c.title, icon: c.icon, desc: c.desc, target: c.target, pay: c.pay, progress: c.target, left: 200 },
+      contractCooldown: 9999
+    });
+    const { context, page } = await newPage(browser, { seed, viewport: { width: 1280, height: 900 }, label: "late-contract-" + c.kind });
+    const sv = await waitSave(page, (x) => x.contractsDone === 1 && x.contract === null, 8000);
+    const rate = sv
+      ? await page.evaluate((raw) => {
+          const st = LJ.Engine.stats(LJ.Engine.normalize(raw, Date.now()));
+          return st.total * st.price * 60;
+        }, sv)
+      : 0;
+    const oldReward = c.target * c.oldMul * (1 + 4);
+    const reward = sv ? sv.cash : 0;
+    check(
+      "late " + c.kind + " contract pays more than one minute of income",
+      reward > rate && rate > 0,
+      "reward=" + fmtNum(reward) + " perMinute=" + fmtNum(rate)
+    );
+    check("late " + c.kind + " contract pays more than the old fixed reward", reward > oldReward, "reward=" + fmtNum(reward) + " old=" + fmtNum(oldReward));
+    await context.close();
+  }
+}
+
+function fmtNum(n) {
+  return Number(n).toExponential(3);
+}
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: CHROME || undefined,
@@ -1124,7 +1167,8 @@ async function scenarioTablet(browser) {
     ["production-mobile", scenarioProductionMobile],
     ["sell-floor", scenarioSellFloor],
     ["auto-production", scenarioAutoProduction],
-    ["tablet", scenarioTablet]
+    ["tablet", scenarioTablet],
+    ["late-contracts", scenarioLateContracts]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
   for (const [name, fn] of suites) {
