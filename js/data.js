@@ -19,36 +19,36 @@ LJ.DATA = {
       blurb: "Hand crew limbing and bucking logs by the road."
     },
     {
-      id: "skidder", name: "Kamuta MS-40 Mini Skidder", icon: "🚜", photo: "assets/machines/skidder.jpg", rate: 3, cost: 150, growth: 1.12, unlock: 500,
-      blurb: "Compact skidder dragging bundles to the landing."
+      id: "skidder", name: "HSM 805 Articulated Skidder", icon: "🚜", photo: "assets/machines/skidder.jpg", rate: 3, cost: 150, growth: 1.12, unlock: 500,
+      blurb: "Crane skidder dragging trunk bundles to the landing."
     },
     {
-      id: "feller", name: "Tigrix F-200 Feller-Buncher", icon: "🌲", photo: "assets/machines/feller.jpg", rate: 14, cost: 1200, growth: 1.13, unlock: 5000,
-      blurb: "Tracked cutting head that fells and bunches in one swing."
+      id: "feller", name: "John Deere 843L-II Feller-Buncher", icon: "🌲", photo: "assets/machines/feller.jpg", rate: 14, cost: 1200, growth: 1.13, unlock: 5000,
+      blurb: "Wheeled cutting head that fells and bunches in one swing."
     },
     {
-      id: "grapple", name: "Kamuta GS-70 Grapple Skidder", icon: "🦬", photo: "assets/machines/grapple.jpg", rate: 22, cost: 4000, growth: 1.13, unlock: 15000,
+      id: "grapple", name: "John Deere 648L-II Grapple Skidder", icon: "🦬", photo: "assets/machines/grapple.jpg", rate: 22, cost: 4000, growth: 1.13, unlock: 15000,
       blurb: "Articulated grapple skidder hauling whole trees."
     },
     {
-      id: "forwarder", name: "Pondrix 8W Forwarder", icon: "🚛", photo: "assets/machines/forwarder.jpg", rate: 60, cost: 9000, growth: 1.14, unlock: 40000,
-      blurb: "Eight wheels, grapple crane, forty tonnes of logs."
+      id: "forwarder", name: "John Deere 1510G Forwarder", icon: "🚛", photo: "assets/machines/forwarder.jpg", rate: 60, cost: 9000, growth: 1.14, unlock: 40000,
+      blurb: "Eight wheels, a loader crane and a 15-tonne load."
     },
     {
-      id: "tigrix-f550", name: "Tigrix F-550 Track Feller", icon: "🌳", photo: "assets/machines/tigrix-f550.jpg", rate: 90, cost: 40000, growth: 1.14, unlock: 120000,
-      blurb: "Track-mounted feller for steep ground and big stems."
+      id: "tigrix-f550", name: "Tigercat 820 Track Feller-Buncher", icon: "🌳", photo: "assets/machines/tigrix-f550.jpg", rate: 90, cost: 40000, growth: 1.14, unlock: 120000,
+      blurb: "Compact tracked feller for thinning and small clearfells."
     },
     {
-      id: "harvester", name: "Stagbrook 1170 Harvester", icon: "🏗️", photo: "assets/machines/harvester.jpg", rate: 300, cost: 75000, growth: 1.15, unlock: 300000,
+      id: "harvester", name: "Komatsu 901XC Harvester", icon: "🏗️", photo: "assets/machines/harvester.jpg", rate: 300, cost: 75000, growth: 1.15, unlock: 300000,
       blurb: "Fells, delimbs and cuts to length in one cycle."
     },
     {
-      id: "pondrix-14w", name: "Pondrix 14W Heavy Forwarder", icon: "🚚", photo: "assets/machines/pondrix-14w.jpg", rate: 900, cost: 250000, growth: 1.15, unlock: 800000,
-      blurb: "Fourteen-wheel giant that never stops for lunch."
+      id: "pondrix-14w", name: "Ponsse Elephant Forwarder", icon: "🚚", photo: "assets/machines/pondrix-14w.jpg", rate: 900, cost: 250000, growth: 1.15, unlock: 800000,
+      blurb: "Eight-wheel giant hauling 18 tonnes a trip."
     },
     {
-      id: "heavy", name: "Stagbrook 1470 Heavy Harvester", icon: "🛻", photo: "assets/machines/heavy.jpg", rate: 1800, cost: 700000, growth: 1.15, unlock: 3000000,
-      blurb: "Tracked monster built for steep stands."
+      id: "heavy", name: "John Deere 1470G Harvester", icon: "🛻", photo: "assets/machines/heavy.jpg", rate: 1800, cost: 700000, growth: 1.15, unlock: 3000000,
+      blurb: "Heavy wheeled harvester for big stems and steep stands."
     },
     {
       id: "processor", name: "Pondrix Multi-Head Processor", icon: "🤖", photo: "assets/machines/processor.svg", rate: 10000, cost: 6000000, growth: 1.15, unlock: 10000000,
@@ -174,7 +174,7 @@ LJ.DATA = {
     { id: "timber-baron", name: "Timber Baron", icon: "🎩", desc: "Produce 1M timber in lifetime.", test: (s) => s.lifetimeTimber >= 1e6 },
     { id: "forest-mogul", name: "Forest Mogul", icon: "🌍", desc: "Produce 1B timber in lifetime.", test: (s) => s.lifetimeTimber >= 1e9 },
     { id: "crew-chief", name: "Crew Chief", icon: "👷", desc: "Hire 10 Ground Crews in one run.", test: (s) => (s.machines.crew || 0) >= 10 },
-    { id: "first-skidder", name: "First Skidder", icon: "🚜", desc: "Hire a mini skidder.", test: (s) => (s.machines.skidder || 0) >= 1 },
+    { id: "first-skidder", name: "First Skidder", icon: "🚜", desc: "Hire a skidder.", test: (s) => (s.machines.skidder || 0) >= 1 },
     { id: "feller-fan", name: "Feller Fan", icon: "🌲", desc: "Hire a feller-buncher.", test: (s) => (s.machines.feller || 0) >= 1 },
     { id: "heavy-lifting", name: "Heavy Lifting", icon: "🚛", desc: "Hire a forwarder.", test: (s) => (s.machines.forwarder || 0) >= 1 },
     { id: "harvest-moon", name: "Harvest Moon", icon: "🏗️", desc: "Hire a harvester.", test: (s) => (s.machines.harvester || 0) >= 1 },
