@@ -761,6 +761,7 @@ LJ.UI = (function () {
               const parsed = E.decodeSave(area.value);
               const state = E.normalize(parsed, Date.now());
               E.save(state, Date.now());
+              E.lockSaves();
               globalThis.location.reload();
             } catch (e) {
               err.textContent = "That save string did not load. Check it and try again.";
