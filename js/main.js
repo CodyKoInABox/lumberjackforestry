@@ -100,6 +100,9 @@
   Scene.init(canvas);
   Scene.setZone(game.s.zone);
   UI.init(game);
+  LJ.Fullscreen.init({
+    notify: (text) => UI.toast({ icon: "🖥️", title: "Fullscreen unavailable", text, tone: "warn" })
+  });
 
   canvas.addEventListener("pointerdown", (e) => {
     e.preventDefault();

@@ -53,6 +53,15 @@ textarea {
   padding: 16px 16px 40px;
 }
 
+.app:fullscreen,
+.app:-webkit-full-screen {
+  max-width: none;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-1) 70%);
+}
+
 .card-surface {
   background: var(--glass);
   border: 1px solid var(--line);
