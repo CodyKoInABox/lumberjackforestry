@@ -108,13 +108,22 @@
     chop(e.clientX - r.left, e.clientY - r.top);
   });
 
+  let spaceHeld = false;
   document.addEventListener("keydown", (e) => {
     if (e.code !== "Space") return;
     if (e.target !== document.body && e.target !== canvas) return;
     if (!document.getElementById("modal-root").hidden) return;
     e.preventDefault();
+    if (e.repeat || spaceHeld) return;
+    spaceHeld = true;
     const r = canvas.getBoundingClientRect();
     chop(r.width * 0.5, r.height * 0.55);
+  });
+  document.addEventListener("keyup", (e) => {
+    if (e.code === "Space") spaceHeld = false;
+  });
+  globalThis.addEventListener("blur", () => {
+    spaceHeld = false;
   });
 
   let lastTick = Date.now();

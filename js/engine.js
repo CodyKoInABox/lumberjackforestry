@@ -11,6 +11,7 @@ LJ.Engine = (function () {
   const REPLANT_GROWTH = 2.2;
   const OVERHAUL_MAX = 3;
   const bus = [];
+  let savesLocked = false;
 
   const byId = {};
   [D.tools, D.machines, D.zones, D.research, D.events, D.achievements, D.sawmill].forEach((list) =>
@@ -600,6 +601,7 @@ LJ.Engine = (function () {
   }
 
   function save(s, now) {
+    if (savesLocked) return false;
     s.savedAt = now;
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(s));
@@ -631,7 +633,12 @@ LJ.Engine = (function () {
     return { state: s, away, fresh: false };
   }
 
+  function lockSaves() {
+    savesLocked = true;
+  }
+
   function wipe() {
+    lockSaves();
     try {
       localStorage.removeItem(SAVE_KEY);
     } catch (e) {}
@@ -665,6 +672,7 @@ LJ.Engine = (function () {
     offline,
     save,
     load,
+    lockSaves,
     wipe,
     encodeSave,
     decodeSave,
