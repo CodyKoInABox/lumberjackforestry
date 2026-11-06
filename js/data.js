@@ -7,10 +7,10 @@ LJ.DATA = {
     { id: "bow-saw", name: "Bow Saw", icon: "🪚", power: 8, cost: 600, blurb: "Crosscut blade for thicker stems." },
     { id: "petrol-saw", name: "Petrol Chainsaw", icon: "🛠️", power: 25, cost: 4000, blurb: "Two-stroke roar. Mind the kickback." },
     { id: "pro-saw", name: "Pro Chainsaw", icon: "⚙️", power: 90, cost: 30000, blurb: "Anti-vibration handles and a torque-heavy engine." },
-    { id: "carbide-saw", name: "Carbide Chainsaw", icon: "💠", power: 400, cost: 250000, blurb: "Carbide-tipped chain. Chews through hardwood." },
-    { id: "hydro-saw", name: "Hydraulic Shear Saw", icon: "🔩", power: 2500, cost: 2000000, blurb: "Hydraulic head on a telescoping boom." },
-    { id: "plasma-saw", name: "Plasma Cutter Saw", icon: "🔥", power: 18000, cost: 25000000, blurb: "Experimental. The trees never see it coming." },
-    { id: "laser-saw", name: "Laser Felling Rig", icon: "🔆", power: 140000, cost: 300000000, blurb: "Coherent light, perfectly straight cuts." }
+    { id: "carbide-saw", name: "Carbide Chainsaw", icon: "💠", power: 400, cost: 120000, blurb: "Carbide-tipped chain. Chews through hardwood." },
+    { id: "hydro-saw", name: "Hydraulic Shear Saw", icon: "🔩", power: 2500, cost: 1000000, blurb: "Hydraulic head on a telescoping boom." },
+    { id: "plasma-saw", name: "Plasma Cutter Saw", icon: "🔥", power: 18000, cost: 10000000, blurb: "Experimental. The trees never see it coming." },
+    { id: "laser-saw", name: "Laser Felling Rig", icon: "🔆", power: 140000, cost: 50000000, blurb: "Coherent light, perfectly straight cuts." }
   ],
 
   machines: [
@@ -51,19 +51,19 @@ LJ.DATA = {
       blurb: "Tracked monster built for steep stands."
     },
     {
-      id: "processor", name: "Pondrix Multi-Head Processor", icon: "🤖", photo: "assets/machines/processor.svg", rate: 10000, cost: 6000000, growth: 1.15, unlock: 30000000,
+      id: "processor", name: "Pondrix Multi-Head Processor", icon: "🤖", photo: "assets/machines/processor.svg", rate: 10000, cost: 6000000, growth: 1.15, unlock: 10000000,
       blurb: "Measures, optimises and cuts every stem in parallel."
     },
     {
-      id: "drone", name: "Vorrex AutoDrone Harvester", icon: "🛸", photo: "assets/machines/drone.svg", rate: 60000, cost: 70000000, growth: 1.15, unlock: 300000000,
+      id: "drone", name: "Vorrex AutoDrone Harvester", icon: "🛸", photo: "assets/machines/drone.svg", rate: 60000, cost: 70000000, growth: 1.15, unlock: 30000000,
       blurb: "Operator-free harvesting drones with a shared map."
     },
     {
-      id: "swarm", name: "Vorrex Swarm Harvester", icon: "🐝", photo: "assets/machines/swarm.svg", rate: 250000, cost: 400000000, growth: 1.16, unlock: 1000000000,
+      id: "swarm", name: "Vorrex Swarm Harvester", icon: "🐝", photo: "assets/machines/swarm.svg", rate: 250000, cost: 400000000, growth: 1.16, unlock: 100000000,
       blurb: "Dozens of cutting pods coordinated by one brain."
     },
     {
-      id: "titan", name: "Vorrex Titan Fleet Unit", icon: "🚀", photo: "assets/machines/titan.svg", rate: 500000, cost: 900000000, growth: 1.16, unlock: 3000000000,
+      id: "titan", name: "Vorrex Titan Fleet Unit", icon: "🚀", photo: "assets/machines/titan.svg", rate: 500000, cost: 900000000, growth: 1.16, unlock: 300000000,
       blurb: "Fleet-scale unit. Lumber trembles at its approach."
     }
   ],
@@ -72,7 +72,7 @@ LJ.DATA = {
     { id: "mill-band", name: "Band Saw Line", icon: "🪵", cost: 2500, price: 0.15, blurb: "Better boards mean better prices. +15% sale price." },
     { id: "mill-kiln", name: "Kiln Drying", icon: "🔥", cost: 40000, price: 0.25, blurb: "Kiln-dried lumber sells for a premium. +25% sale price." },
     { id: "mill-plane", name: "CNC Planer", icon: "📐", cost: 600000, price: 0.4, blurb: "Precision planing. +40% sale price." },
-    { id: "mill-export", name: "Export Terminal", icon: "🚢", cost: 12000000, price: 0.6, blurb: "Ships to every continent. +60% sale price." }
+    { id: "mill-export", name: "Export Terminal", icon: "🚢", cost: 4000000, price: 0.6, blurb: "Ships to every continent. +60% sale price." }
   ],
 
   zones: [
@@ -97,47 +97,47 @@ LJ.DATA = {
       blurb: "Boreal wilderness, permafrost and long winters."
     },
     {
-      id: "oldgrowth", name: "Old Growth Forest", unlock: 50000000, hp: 9000, research: 2, tree: "oldgrowth", size: 1.05,
+      id: "oldgrowth", name: "Old Growth Forest", unlock: 20000000, hp: 9000, research: 2, tree: "oldgrowth", size: 1.05,
       sky: ["#f2a65a", "#ffd9a0"], sun: "#ffe0a3", far: "#8b5e6b", near: "#5b4a4a", ground: "#3c4a33", leaf: "#2f6b3a", leaf2: "#1c4a28", trunk: "#5a3a25",
       blurb: "Ancient giants, mossy trunks and protected status."
     },
     {
-      id: "redwood", name: "Redwood Coast", unlock: 1000000000, hp: 60000, research: 4, tree: "redwood", size: 1.15,
+      id: "redwood", name: "Redwood Coast", unlock: 300000000, hp: 60000, research: 4, tree: "redwood", size: 1.15,
       sky: ["#9ad0e6", "#f7e7c6"], sun: "#fff8e0", far: "#8fa8a0", near: "#577f72", ground: "#2e5b46", leaf: "#2f7d4c", leaf2: "#165235", trunk: "#7a3e2a",
       blurb: "Fog-soaked coast where the tallest trees on Earth grow."
     }
   ],
 
   research: [
-    { id: "hyd1", branch: "hydraulics", name: "Hydraulic Pumps I", cost: 20, req: null, desc: "+15% machine output." },
-    { id: "hyd2", branch: "hydraulics", name: "Hydraulic Pumps II", cost: 160, req: "hyd1", desc: "+25% machine output." },
-    { id: "hyd3", branch: "hydraulics", name: "Closed-Loop Hydraulics", cost: 1000, req: "hyd2", desc: "+60% machine output." },
-    { id: "hyd4", branch: "hydraulics", name: "Fleet Telematics", cost: 7200, req: "hyd3", desc: "+100% machine output." },
+    { id: "hyd1", branch: "hydraulics", name: "Hydraulic Pumps I", cost: 5, req: null, desc: "+15% machine output." },
+    { id: "hyd2", branch: "hydraulics", name: "Hydraulic Pumps II", cost: 40, req: "hyd1", desc: "+25% machine output." },
+    { id: "hyd3", branch: "hydraulics", name: "Closed-Loop Hydraulics", cost: 250, req: "hyd2", desc: "+60% machine output." },
+    { id: "hyd4", branch: "hydraulics", name: "Fleet Telematics", cost: 1800, req: "hyd3", desc: "+100% machine output." },
 
-    { id: "fel1", branch: "felling", name: "Sharper Chains", cost: 32, req: null, desc: "+50% tap damage." },
-    { id: "fel2", branch: "felling", name: "Crit Strikes", cost: 140, req: "fel1", desc: "+10% crit chance on every tap." },
-    { id: "fel3", branch: "felling", name: "Guide-Bar Precision", cost: 800, req: "fel2", desc: "+100% tap damage." },
-    { id: "fel4", branch: "felling", name: "Ballistic Carbide", cost: 6000, req: "fel3", desc: "+10% crit chance and crits deal ×6 instead of ×4." },
+    { id: "fel1", branch: "felling", name: "Sharper Chains", cost: 8, req: null, desc: "+50% tap damage." },
+    { id: "fel2", branch: "felling", name: "Crit Strikes", cost: 35, req: "fel1", desc: "+10% crit chance on every tap." },
+    { id: "fel3", branch: "felling", name: "Guide-Bar Precision", cost: 200, req: "fel2", desc: "+100% tap damage." },
+    { id: "fel4", branch: "felling", name: "Ballistic Carbide", cost: 1500, req: "fel3", desc: "+10% crit chance and crits deal ×6 instead of ×4." },
 
-    { id: "mkt1", branch: "markets", name: "Export Contracts", cost: 40, req: null, desc: "+15% timber sale price." },
-    { id: "mkt2", branch: "markets", name: "Forward Trading", cost: 240, req: "mkt1", desc: "Unlocks Auto-Sell." },
-    { id: "mkt3", branch: "markets", name: "Index Futures", cost: 1200, req: "mkt2", desc: "+40% timber sale price." },
-    { id: "mkt4", branch: "markets", name: "Commodity Hedging", cost: 8000, req: "mkt3", desc: "Market price swings are half as wild." },
+    { id: "mkt1", branch: "markets", name: "Export Contracts", cost: 10, req: null, desc: "+15% timber sale price." },
+    { id: "mkt2", branch: "markets", name: "Forward Trading", cost: 60, req: "mkt1", desc: "Unlocks Auto-Sell." },
+    { id: "mkt3", branch: "markets", name: "Index Futures", cost: 300, req: "mkt2", desc: "+40% timber sale price." },
+    { id: "mkt4", branch: "markets", name: "Commodity Hedging", cost: 2000, req: "mkt3", desc: "Market price swings are half as wild." },
 
-    { id: "aut1", branch: "automation", name: "Auto-Fell", cost: 100, req: null, desc: "Unlocks Auto-Fell: your saw swings on its own." },
-    { id: "aut2", branch: "automation", name: "Auto-Hire", cost: 480, req: "aut1", desc: "Unlocks Auto-Hire: buys the best machine each second." },
-    { id: "aut3", branch: "automation", name: "Twin Tool Heads", cost: 1400, req: "aut1", desc: "Auto-Fell hits twice as often." },
-    { id: "aut4", branch: "automation", name: "Dispatch AI", cost: 10000, req: "aut2", desc: "Auto-Hire also picks up overhauls when cheaper." },
+    { id: "aut1", branch: "automation", name: "Auto-Fell", cost: 25, req: null, desc: "Unlocks Auto-Fell: your saw swings on its own." },
+    { id: "aut2", branch: "automation", name: "Auto-Hire", cost: 120, req: "aut1", desc: "Unlocks Auto-Hire: buys the best machine each second." },
+    { id: "aut3", branch: "automation", name: "Twin Tool Heads", cost: 350, req: "aut1", desc: "Auto-Fell hits twice as often." },
+    { id: "aut4", branch: "automation", name: "Dispatch AI", cost: 2500, req: "aut2", desc: "Auto-Hire also picks up overhauls when cheaper." },
 
-    { id: "crw1", branch: "workforce", name: "Crew Training", cost: 60, req: null, desc: "+20% Ground Crew output." },
-    { id: "crw2", branch: "workforce", name: "Safety Certification", cost: 360, req: "crw1", desc: "Crews spot weak spots: +3% crit chance." },
-    { id: "crw3", branch: "workforce", name: "Shift Rotation", cost: 2400, req: "crw2", desc: "Offline earnings rise to 75%." },
-    { id: "crw4", branch: "workforce", name: "Forestry Degree", cost: 16000, req: "crw3", desc: "+25% contract rewards." },
+    { id: "crw1", branch: "workforce", name: "Crew Training", cost: 15, req: null, desc: "+20% Ground Crew output." },
+    { id: "crw2", branch: "workforce", name: "Safety Certification", cost: 90, req: "crw1", desc: "Crews spot weak spots: +3% crit chance." },
+    { id: "crw3", branch: "workforce", name: "Shift Rotation", cost: 600, req: "crw2", desc: "Offline earnings rise to 75%." },
+    { id: "crw4", branch: "workforce", name: "Forestry Degree", cost: 4000, req: "crw3", desc: "+25% contract rewards." },
 
-    { id: "sus1", branch: "sustainability", name: "Replanting Program", cost: 120, req: null, desc: "+25% seedlings from Replant." },
-    { id: "sus2", branch: "sustainability", name: "Soil Health", cost: 600, req: "sus1", desc: "+10% all timber income." },
-    { id: "sus3", branch: "sustainability", name: "Biomass Boilers", cost: 3200, req: "sus2", desc: "Burns slash for power: +20% machine output." },
-    { id: "sus4", branch: "sustainability", name: "Carbon Credits", cost: 20000, req: "sus3", desc: "Seedling bonuses are 50% stronger." }
+    { id: "sus1", branch: "sustainability", name: "Replanting Program", cost: 30, req: null, desc: "+25% seedlings from Replant." },
+    { id: "sus2", branch: "sustainability", name: "Soil Health", cost: 150, req: "sus1", desc: "+10% all timber income." },
+    { id: "sus3", branch: "sustainability", name: "Biomass Boilers", cost: 800, req: "sus2", desc: "Burns slash for power: +20% machine output." },
+    { id: "sus4", branch: "sustainability", name: "Carbon Credits", cost: 5000, req: "sus3", desc: "Seedling bonuses are 50% stronger." }
   ],
 
   research_branches: [
