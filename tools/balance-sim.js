@@ -20,7 +20,7 @@ const MAX_HOURS = Number(process.env.MAX_HOURS || 40);
 
 function loadGame(dir) {
   globalThis.LJ = {};
-  for (const f of ["data.js", "util.js", "engine.js"]) {
+  for (const f of ["data.js", "util.js", "production-data.js", "production.js", "engine.js"]) {
     vm.runInThisContext(fs.readFileSync(path.join(dir, f), "utf8"), { filename: f });
   }
   return globalThis.LJ;
