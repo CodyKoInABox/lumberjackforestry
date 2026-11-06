@@ -108,6 +108,26 @@ LJ.DATA = {
     }
   ],
 
+  // Locations sit after Redwood Coast. They unlock on lifetime timber and are picked
+  // in the Locations picker. Research per tree is about half the Redwood ratio (research / hp).
+  locations: [
+    {
+      id: "alpine", name: "Alpine Larch Slope", icon: "🏔️", unlock: 2e9, hp: 240000, research: 8, tree: "larch", size: 1.1,
+      sky: ["#7fb4e0", "#e6f2ff"], sun: "#fff5dc", far: "#8aa6b8", near: "#5d7f8e", ground: "#4a6b52", leaf: "#b9c96a", leaf2: "#8ea14e", trunk: "#5b4030",
+      blurb: "Cold slopes where larch turns gold before the snow."
+    },
+    {
+      id: "kauri", name: "Kauri Grove", icon: "🌿", unlock: 2e10, hp: 1000000, research: 30, tree: "kauri", size: 1.2,
+      sky: ["#5fb8c9", "#d9f3e6"], sun: "#fffbe0", far: "#4a8a7a", near: "#2d6b5a", ground: "#244f42", leaf: "#3f9a6a", leaf2: "#2a7455", trunk: "#8a5e3c",
+      blurb: "Warm, humid giants with resin-dark trunks."
+    },
+    {
+      id: "cedar", name: "Mist Cedar Peaks", icon: "☁️", unlock: 2e11, hp: 4000000, research: 120, tree: "cedar", size: 1.15,
+      sky: ["#b7c9d6", "#eef3f5"], sun: "#fff9ea", far: "#7d8f99", near: "#56707a", ground: "#3d5a58", leaf: "#2f6e5c", leaf2: "#1d4f44", trunk: "#4e3a2e",
+      blurb: "Misty peaks where cedars drip with moss."
+    }
+  ],
+
   research: [
     { id: "hyd1", branch: "hydraulics", name: "Hydraulic Pumps I", cost: 5, req: null, desc: "+15% machine output." },
     { id: "hyd2", branch: "hydraulics", name: "Hydraulic Pumps II", cost: 40, req: "hyd1", desc: "+25% machine output." },

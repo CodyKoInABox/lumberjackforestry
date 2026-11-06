@@ -71,6 +71,7 @@ function simulate(L, profile, seed) {
 
   function checkMilestones() {
     for (let k = 1; k < D.zones.length; k++) if (s.zone >= k) mark("zone" + k);
+    for (const l of D.locations) if (s.lifetimeTimber >= l.unlock) mark("loc:" + l.id);
     for (let i = 1; i < D.tools.length; i++) if (s.tool >= i) mark("tool:" + D.tools[i].id);
     for (const m of D.machines) {
       if (s.runUnlocked[m.id]) mark("unlock:" + m.id);
@@ -138,6 +139,10 @@ function simulate(L, profile, seed) {
       if (!pick) break;
       E.research(s, pick.id);
     }
+
+    const bestLoc = E.unlockedLocations(s).slice(-1)[0];
+    const wantLoc = bestLoc ? bestLoc.id : null;
+    if (s.location !== wantLoc) E.setLocation(s, wantLoc);
 
     if (E.canReplant(s)) {
       E.replant(s, 0);
@@ -237,6 +242,7 @@ function main() {
     "first_replant",
     "replant3",
     "zone1", "zone2", "zone3", "zone4", "zone5",
+    ...D.locations.map((l) => "loc:" + l.id),
     ...D.tools.slice(1).map((t) => "tool:" + t.id),
     ...D.machines.map((m) => "unlock:" + m.id),
     "research1",
