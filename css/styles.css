@@ -157,8 +157,8 @@ textarea {
 }
 
 .icon-btn {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
   border: 1px solid var(--line);
   background: rgba(0, 0, 0, 0.25);
@@ -363,6 +363,54 @@ textarea {
 
 /* Stage foot */
 
+.tool-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.tool-bar:empty {
+  display: none;
+}
+
+.scene-tool {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.scene-tool.is-equipped {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px rgba(255, 196, 92, 0.35);
+  transform: translateY(-2px);
+}
+
+.card-icon.has-photo {
+  padding: 0;
+  overflow: hidden;
+  font-size: 0;
+}
+
+.card-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card.locked .card-photo {
+  filter: grayscale(1);
+}
+
 .stage-foot {
   padding: 14px 16px;
   display: flex;
@@ -490,6 +538,7 @@ textarea {
 
 .tab {
   flex: none;
+  min-height: 44px;
   padding: 9px 12px;
   border-radius: 12px;
   border: 1px solid transparent;
@@ -647,6 +696,7 @@ textarea {
 .card-btn {
   border: 0;
   border-radius: 12px;
+  min-height: 44px;
   padding: 9px 12px;
   font-weight: 800;
   font-size: 13px;
@@ -1249,4 +1299,30 @@ textarea {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+.unit-photo {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+}
+
+html.cb {
+  --amber: #7ec8ff;
+  --amber-2: #3b8ff0;
+  --mint: #ffd166;
+}
+
+html.cb .card-btn,
+html.cb .tab.active,
+html.cb .sell-btn,
+html.cb .btn.primary {
+  background: linear-gradient(135deg, #bfe3ff, #5aa9f0);
+  color: #052038;
+}
+
+html.cb .card.can {
+  box-shadow: inset 3px 0 0 #7ec8ff;
 }

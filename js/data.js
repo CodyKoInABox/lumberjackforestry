@@ -15,55 +15,55 @@ LJ.DATA = {
 
   machines: [
     {
-      id: "crew", name: "Ground Crew", icon: "👷", rate: 0.6, cost: 20, growth: 1.1, unlock: 0,
+      id: "crew", name: "Ground Crew", icon: "👷", photo: "assets/machines/crew.jpg", rate: 0.6, cost: 20, growth: 1.1, unlock: 0,
       blurb: "Hand crew limbing and bucking logs by the road."
     },
     {
-      id: "skidder", name: "Kamuta MS-40 Mini Skidder", icon: "🚜", rate: 3, cost: 150, growth: 1.12, unlock: 500,
+      id: "skidder", name: "Kamuta MS-40 Mini Skidder", icon: "🚜", photo: "assets/machines/skidder.jpg", rate: 3, cost: 150, growth: 1.12, unlock: 500,
       blurb: "Compact skidder dragging bundles to the landing."
     },
     {
-      id: "feller", name: "Tigrix F-200 Feller-Buncher", icon: "🌲", rate: 14, cost: 1200, growth: 1.13, unlock: 5000,
+      id: "feller", name: "Tigrix F-200 Feller-Buncher", icon: "🌲", photo: "assets/machines/feller.jpg", rate: 14, cost: 1200, growth: 1.13, unlock: 5000,
       blurb: "Tracked cutting head that fells and bunches in one swing."
     },
     {
-      id: "grapple", name: "Kamuta GS-70 Grapple Skidder", icon: "🦬", rate: 22, cost: 4000, growth: 1.13, unlock: 15000,
+      id: "grapple", name: "Kamuta GS-70 Grapple Skidder", icon: "🦬", photo: "assets/machines/grapple.jpg", rate: 22, cost: 4000, growth: 1.13, unlock: 15000,
       blurb: "Articulated grapple skidder hauling whole trees."
     },
     {
-      id: "forwarder", name: "Pondrix 8W Forwarder", icon: "🚛", rate: 60, cost: 9000, growth: 1.14, unlock: 40000,
+      id: "forwarder", name: "Pondrix 8W Forwarder", icon: "🚛", photo: "assets/machines/forwarder.jpg", rate: 60, cost: 9000, growth: 1.14, unlock: 40000,
       blurb: "Eight wheels, grapple crane, forty tonnes of logs."
     },
     {
-      id: "tigrix-f550", name: "Tigrix F-550 Track Feller", icon: "🌳", rate: 90, cost: 40000, growth: 1.14, unlock: 120000,
+      id: "tigrix-f550", name: "Tigrix F-550 Track Feller", icon: "🌳", photo: "assets/machines/tigrix-f550.jpg", rate: 90, cost: 40000, growth: 1.14, unlock: 120000,
       blurb: "Track-mounted feller for steep ground and big stems."
     },
     {
-      id: "harvester", name: "Stagbrook 1170 Harvester", icon: "🏗️", rate: 300, cost: 75000, growth: 1.15, unlock: 300000,
+      id: "harvester", name: "Stagbrook 1170 Harvester", icon: "🏗️", photo: "assets/machines/harvester.jpg", rate: 300, cost: 75000, growth: 1.15, unlock: 300000,
       blurb: "Fells, delimbs and cuts to length in one cycle."
     },
     {
-      id: "pondrix-14w", name: "Pondrix 14W Heavy Forwarder", icon: "🚚", rate: 900, cost: 250000, growth: 1.15, unlock: 800000,
+      id: "pondrix-14w", name: "Pondrix 14W Heavy Forwarder", icon: "🚚", photo: "assets/machines/pondrix-14w.jpg", rate: 900, cost: 250000, growth: 1.15, unlock: 800000,
       blurb: "Fourteen-wheel giant that never stops for lunch."
     },
     {
-      id: "heavy", name: "Stagbrook 1470 Heavy Harvester", icon: "🛻", rate: 1800, cost: 700000, growth: 1.15, unlock: 3000000,
+      id: "heavy", name: "Stagbrook 1470 Heavy Harvester", icon: "🛻", photo: "assets/machines/heavy.jpg", rate: 1800, cost: 700000, growth: 1.15, unlock: 3000000,
       blurb: "Tracked monster built for steep stands."
     },
     {
-      id: "processor", name: "Pondrix Multi-Head Processor", icon: "🤖", rate: 10000, cost: 6000000, growth: 1.15, unlock: 30000000,
+      id: "processor", name: "Pondrix Multi-Head Processor", icon: "🤖", photo: "assets/machines/processor.svg", rate: 10000, cost: 6000000, growth: 1.15, unlock: 30000000,
       blurb: "Measures, optimises and cuts every stem in parallel."
     },
     {
-      id: "drone", name: "Vorrex AutoDrone Harvester", icon: "🛸", rate: 60000, cost: 70000000, growth: 1.15, unlock: 300000000,
+      id: "drone", name: "Vorrex AutoDrone Harvester", icon: "🛸", photo: "assets/machines/drone.svg", rate: 60000, cost: 70000000, growth: 1.15, unlock: 300000000,
       blurb: "Operator-free harvesting drones with a shared map."
     },
     {
-      id: "swarm", name: "Vorrex Swarm Harvester", icon: "🐝", rate: 250000, cost: 400000000, growth: 1.16, unlock: 1000000000,
+      id: "swarm", name: "Vorrex Swarm Harvester", icon: "🐝", photo: "assets/machines/swarm.svg", rate: 250000, cost: 400000000, growth: 1.16, unlock: 1000000000,
       blurb: "Dozens of cutting pods coordinated by one brain."
     },
     {
-      id: "titan", name: "Vorrex Titan Fleet Unit", icon: "🚀", rate: 500000, cost: 900000000, growth: 1.16, unlock: 3000000000,
+      id: "titan", name: "Vorrex Titan Fleet Unit", icon: "🚀", photo: "assets/machines/titan.svg", rate: 500000, cost: 900000000, growth: 1.16, unlock: 3000000000,
       blurb: "Fleet-scale unit. Lumber trembles at its approach."
     }
   ],
@@ -194,6 +194,10 @@ LJ.DATA = {
     { id: "old-growth", name: "Ancient Ground", icon: "🌳", desc: "Reach Old Growth Forest.", test: (s) => s.zone >= 4 },
     { id: "redwood-royalty", name: "Redwood Royalty", icon: "👑", desc: "Reach the Redwood Coast.", test: (s) => s.zone >= 5 },
     { id: "event-witness", name: "Weather Watcher", icon: "🌦️", desc: "Witness 5 forest events.", test: (s) => s.eventsSeen >= 5 },
-    { id: "marathon", name: "Marathon Logger", icon: "⏱️", desc: "Play for 10 hours.", test: (s) => s.playtime >= 36000 }
+    { id: "marathon", name: "Marathon Logger", icon: "⏱️", desc: "Play for 10 hours.", test: (s) => s.playtime >= 36000 },
+    { id: "crew-of-twenty", name: "Crew of Twenty", icon: "👥", desc: "Have 20 Ground Crews on the ground.", test: (s) => (s.machines.crew || 0) >= 20 },
+    { id: "tool-shed", name: "Tool Shed", icon: "🧰", desc: "Own every hand tool in the catalogue.", test: (s) => s.tool >= LJ.DATA.tools.length - 1 },
+    { id: "swarm-intelligence", name: "Swarm Intelligence", icon: "🧠", desc: "Hire a Vorrex Swarm Harvester.", test: (s) => (s.machines.swarm || 0) >= 1 },
+    { id: "titan-watch", name: "Titan Watch", icon: "🌌", desc: "Hire a Vorrex Titan Fleet Unit.", test: (s) => (s.machines.titan || 0) >= 1 }
   ]
 };

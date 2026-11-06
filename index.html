@@ -100,9 +100,11 @@
             </div>
           </div>
 
+          <div class="tool-bar" id="scene-tools" role="group" aria-label="Owned tools"></div>
+
           <div class="stage-foot card-surface">
             <div class="sell-group">
-              <button class="btn primary sell-btn" id="sell-btn" type="button">
+              <button class="btn primary sell-btn" id="sell-btn" type="button" aria-keyshortcuts="S" title="Sell all (S)">
                 <span id="sell-btn-label">Sell all · $0</span>
               </button>
               <div class="market" title="Market price over the last few minutes">
@@ -200,12 +202,13 @@
               <p class="panel-intro">Progress saves to this browser automatically. Export a save string to move it between devices.</p>
               <div class="settings-grid">
                 <button class="btn" id="set-sound" type="button" aria-pressed="true">Sound: on</button>
+                <button class="btn" id="set-colorblind" type="button" aria-pressed="false">Colour-blind palette: off</button>
                 <button class="btn" id="set-help" type="button">Replay tutorial</button>
                 <button class="btn" id="set-export" type="button">Export save</button>
                 <button class="btn" id="set-import" type="button">Import save</button>
                 <button class="btn danger" id="set-reset" type="button">Reset progress</button>
               </div>
-              <p class="fineprint">Timberline is an original game. Machine brands are fictional. Saves stay in your browser's local storage.</p>
+              <p class="fineprint">Timberline is an original game. Machine brands are fictional. Saves stay in your browser's local storage. Machine photos are Wikimedia Commons images under their own licences, see <a href="assets/machines/CREDITS.md">photo credits</a>.</p>
             </section>
           </div>
         </aside>

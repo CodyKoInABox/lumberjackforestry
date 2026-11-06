@@ -108,6 +108,15 @@
     chop(e.clientX - r.left, e.clientY - r.top);
   });
 
+  document.addEventListener("keydown", (e) => {
+    if (e.code !== "KeyS" || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.target !== document.body && e.target !== canvas) return;
+    if (!document.getElementById("modal-root").hidden) return;
+    const sell = document.getElementById("sell-btn");
+    if (sell.disabled) return;
+    sell.click();
+  });
+
   let spaceHeld = false;
   document.addEventListener("keydown", (e) => {
     if (e.code !== "Space") return;
@@ -139,7 +148,10 @@
     processEvents();
   }, 100);
 
-  setInterval(() => UI.refresh(), 250);
+  setInterval(() => {
+    UI.refresh();
+    Scene.setFleet(game.s);
+  }, 250);
 
   function saveNow() {
     E.save(game.s, Date.now());
@@ -157,6 +169,7 @@
   requestAnimationFrame(frame);
 
   processEvents();
+  Scene.setFleet(game.s);
   if (loaded.away) UI.showAway(loaded.away);
   UI.refresh();
 })();
