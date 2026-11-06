@@ -1102,6 +1102,66 @@ async function scenarioTablet(browser) {
   await context.close();
 }
 
+async function scenarioForestFires(browser) {
+  const fireSeed = (overrides) =>
+    seedBase(
+      Object.assign(
+        { events: [{ id: "fire", left: 60 }], machines: { crew: 10 }, runUnlocked: { crew: true }, tutorial: 99 },
+        overrides
+      )
+    );
+  const { context, page } = await newPage(browser, { seed: fireSeed({}), label: "fire" });
+  await sleep(400);
+  const chip = await page.evaluate(() => {
+    const c = document.getElementById("event-chip");
+    return { hidden: c.hidden, text: c.textContent.trim() };
+  });
+  check("a forest fire shows on the event chip", !chip.hidden && chip.text.includes("Forest Fire"), JSON.stringify(chip));
+
+  const mult = await page.evaluate(() => {
+    const mk = (events, nodes) =>
+      LJ.Engine.stats(
+        LJ.Engine.normalize(
+          { v: 1, events, nodes, machines: { crew: 10 }, runUnlocked: { crew: true } },
+          Date.now()
+        )
+      ).machineMult;
+    return {
+      calm: mk([], {}),
+      fire: mk([{ id: "fire", left: 60 }], {}),
+      lookout: mk([{ id: "fire", left: 60 }], { sus5: true })
+    };
+  });
+  check("fire halves machine output", Math.abs(mult.fire / mult.calm - 0.5) < 1e-9, JSON.stringify(mult));
+  check("Fire Lookout softens the fire to 75%", Math.abs(mult.lookout / mult.calm - 0.75) < 1e-9, JSON.stringify(mult));
+  await ensureScreenshot(page, "fire-event.png");
+  await context.close();
+
+  const { context: rc, page: rp } = await newPage(browser, {
+    seed: seedBase({ research: 500, nodes: { sus1: true, sus2: true }, tutorial: 99 }),
+    label: "fire-research"
+  });
+  await rp.click("#tab-research");
+  await rp.click('#list-research .card[data-key="rs-sus5"] .card-btn');
+  const bought = await waitSave(rp, (s) => s.nodes && s.nodes.sus5, 6000);
+  check("Fire Lookout can be researched and saves", !!bought && bought.nodes.sus5 === true && bought.research === 100, bought ? "research=" + bought.research : "no save");
+  await rc.close();
+
+  const { context: ec, page: ep } = await newPage(browser, {
+    seed: fireSeed({ events: [{ id: "fire", left: 1.2 }] }),
+    label: "fire-ends"
+  });
+  const ended = await waitSave(ep, (s) => Array.isArray(s.events) && s.events.length === 0, 6000);
+  check("a fire burns out on its own", !!ended);
+  await ec.close();
+
+  const { context: mc, page: mp } = await newPage(browser, { seed: fireSeed({}), viewport: { width: 360, height: 740 }, touch: true, label: "fire-mobile" });
+  await sleep(400);
+  const overflow = await mp.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  check("360px: fire chip with no horizontal overflow", overflow <= 1, "overflow=" + overflow);
+  await mc.close();
+}
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: CHROME || undefined,
@@ -1124,7 +1184,8 @@ async function scenarioTablet(browser) {
     ["production-mobile", scenarioProductionMobile],
     ["sell-floor", scenarioSellFloor],
     ["auto-production", scenarioAutoProduction],
-    ["tablet", scenarioTablet]
+    ["tablet", scenarioTablet],
+    ["forest-fires", scenarioForestFires]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
   for (const [name, fn] of suites) {
