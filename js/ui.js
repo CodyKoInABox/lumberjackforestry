@@ -255,25 +255,6 @@ LJ.UI = (function () {
   }
 
   let fleetSignature = "";
-  let toolbarSignature = "";
-  function renderToolbar(s) {
-    const sig = String(s.tool);
-    if (sig === toolbarSignature) return;
-    toolbarSignature = sig;
-    const bar = el("scene-tools");
-    bar.textContent = "";
-    D.tools.forEach((t, i) => {
-      if (i > s.tool) return;
-      const equipped = i === s.tool;
-      const b = create("span", "scene-tool" + (equipped ? " is-equipped" : ""), t.icon);
-      b.dataset.toolId = t.id;
-      b.title = t.name + (equipped ? " (equipped)" : "");
-      b.setAttribute("role", "img");
-      b.setAttribute("aria-label", t.name + (equipped ? ", equipped" : ""));
-      bar.appendChild(b);
-    });
-  }
-
   function renderFleetStrip(s, st) {
     const parts = D.machines.map((m) => (s.machines[m.id] || 0) + ":" + (s.overhauls[m.id] || 0));
     const sig = parts.join("|");
@@ -288,16 +269,7 @@ LJ.UI = (function () {
       const unit = create("div", "unit");
       unit.style.setProperty("--i", String(idx++));
       unit.title = m.name + " ×" + n;
-      let icon;
-      if (m.photo) {
-        icon = create("img", "unit-photo");
-        icon.alt = "";
-        icon.decoding = "async";
-        icon.src = m.photo;
-      } else {
-        icon = create("span", "unit-icon", m.icon);
-      }
-      unit.append(icon, create("span", "unit-count", "×" + U.fmt(n)));
+      unit.append(create("span", "unit-icon", m.icon), create("span", "unit-count", "×" + U.fmt(n)));
       strip.appendChild(unit);
     }
     if (!idx) {
@@ -599,7 +571,6 @@ LJ.UI = (function () {
     const st = E.stats(s);
     renderTop(s, st);
     renderStage(s, st);
-    renderToolbar(s);
     renderContract(s);
     renderFleetStrip(s, st);
     renderBadges(s, st);

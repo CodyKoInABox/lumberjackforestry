@@ -148,10 +148,7 @@
     processEvents();
   }, 100);
 
-  setInterval(() => {
-    UI.refresh();
-    Scene.setFleet(game.s);
-  }, 250);
+  setInterval(() => UI.refresh(), 250);
 
   function saveNow() {
     E.save(game.s, Date.now());
@@ -169,7 +166,6 @@
   requestAnimationFrame(frame);
 
   processEvents();
-  Scene.setFleet(game.s);
   if (loaded.away) UI.showAway(loaded.away);
   UI.refresh();
 })();

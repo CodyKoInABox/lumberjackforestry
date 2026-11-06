@@ -783,25 +783,20 @@ async function scenarioVisuals(browser) {
   await page.click("#tab-tools");
   await page.click('#list-tools .card:has-text("Felling Axe") .card-btn');
   await sleep(350);
-  const toolOnScreen = await page.$eval('.scene-tool[data-tool-id="felling-axe"]', (n) => {
-    const r = n.getBoundingClientRect();
-    return r.width > 0 && r.bottom <= window.innerHeight && r.right <= window.innerWidth;
-  }).catch(() => false);
-  check("purchased tool appears in the on-screen toolbar", toolOnScreen);
+  check("no tool toolbar is drawn on the game screen", (await page.$("#scene-tools")) === null);
 
   await page.click("#tab-fleet");
-  const crewBefore = await page.$eval("#scene", (c) => c.dataset.crewDrawn || "0");
   await page.click('#list-fleet .card:has-text("Ground Crew") .card-btn');
-  await waitFor(async () => (await page.$eval("#scene", (c) => c.dataset.crewDrawn)) === "1", 3000);
-  const crewAfter = await page.$eval("#scene", (c) => c.dataset.crewDrawn);
-  check("hired crew member is drawn in the forest scene", crewBefore === "0" && crewAfter === "1", "crew drawn " + crewBefore + " -> " + crewAfter);
+  await sleep(400);
+  const drawn = await page.$eval("#scene", (c) => ({ crew: c.dataset.crewDrawn, machines: c.dataset.machinesDrawn }));
+  check("forest scene draws only the tree (no crew or machine sprites)", drawn.crew === undefined && drawn.machines === undefined, JSON.stringify(drawn));
 
   const photos = await page.$$eval("#list-fleet .card-photo", (imgs) => imgs.map((i) => ({ src: i.getAttribute("src"), ok: i.complete && i.naturalWidth > 0 })));
   const allLoaded = photos.length === 13 && photos.every((p) => p.ok);
   check("buy screen shows a loaded image for each of the 13 machines", allLoaded, "images=" + photos.length + " loaded=" + photos.filter((p) => p.ok).length);
   const relative = photos.every((p) => p.src && !/^(\/|https?:)/.test(p.src));
   check("machine photos use relative paths", relative);
-  await ensureScreenshot(page, "08-desktop-visuals-tool-and-crew.png");
+  await ensureScreenshot(page, "08-desktop-buy-screen-photos.png");
   await context.close();
 }
 
@@ -814,9 +809,8 @@ async function scenarioFeatures(browser) {
 
   const fleetSeed = seedBase({ cash: 0, machines: { crew: 3, skidder: 1, drone: 1 }, runUnlocked: { crew: true, skidder: true, drone: true }, tutorial: 99 });
   ({ context, page } = await newPage(browser, { seed: fleetSeed, viewport: { width: 1280, height: 900 }, label: "strip" }));
-  await waitFor(async () => (await page.$$("#fleet-strip img.unit-photo")).length === 3, 3000);
-  const stripOk = await page.$$eval("#fleet-strip img.unit-photo", (imgs) => imgs.length === 3 && imgs.every((i) => i.complete && i.naturalWidth > 0));
-  check("active fleet strip shows a photo for each owned machine type", stripOk);
+  await waitFor(async () => (await page.$$("#fleet-strip .unit")).length === 3, 3000);
+  check("active fleet strip lists each owned machine type", (await page.$$("#fleet-strip .unit")).length === 3);
   await context.close();
 
   const sellSeed = seedBase({ cash: 0, timber: 500, runTimber: 500, lifetimeTimber: 500, tutorial: 99 });
