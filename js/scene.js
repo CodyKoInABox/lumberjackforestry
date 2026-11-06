@@ -40,8 +40,12 @@ LJ.Scene = (function () {
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  function setZone(idx) {
-    theme = D.zones[idx] || D.zones[0];
+  function setArea(area) {
+    theme = area || D.zones[0];
+  }
+
+  function area() {
+    return theme;
   }
 
   function treeBase() {
@@ -89,8 +93,8 @@ LJ.Scene = (function () {
     shake = Math.min(shake, 4);
   }
 
-  function fellTree(zoneIdx) {
-    const th = D.zones[zoneIdx] || theme;
+  function fellTree(source) {
+    const th = source || theme;
     fall = { t: 0, theme: th, dir: Math.random() < 0.5 ? -1 : 1 };
     grow = -GROW_DELAY / GROW_TIME;
     const b = treeBase();
@@ -185,6 +189,21 @@ LJ.Scene = (function () {
       c.fill();
       return;
     }
+    if (type === "kauri") {
+      c.fillRect(-H * 0.05, -H * 0.78, H * 0.1, H * 0.78);
+      c.fillStyle = th.leaf;
+      c.beginPath();
+      c.ellipse(0, -H * 0.84, H * 0.3, H * 0.2, 0, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = th.leaf2;
+      c.beginPath();
+      c.ellipse(H * 0.12, -H * 0.66, H * 0.2, H * 0.14, 0, 0, Math.PI * 2);
+      c.fill();
+      c.beginPath();
+      c.ellipse(-H * 0.14, -H * 0.62, H * 0.18, H * 0.13, 0, 0, Math.PI * 2);
+      c.fill();
+      return;
+    }
     if (type === "redwood") {
       c.fillStyle = th.trunk;
       c.fillRect(-H * 0.07, -H * 0.82, H * 0.14, H * 0.82);
@@ -203,7 +222,7 @@ LJ.Scene = (function () {
       }
       return;
     }
-    const layers = { pine: 3, spruce: 5, fir: 6, oldgrowth: 5 }[type] || 4;
+    const layers = { pine: 3, spruce: 5, fir: 6, oldgrowth: 5, larch: 7, cedar: 8 }[type] || 4;
     c.fillRect(-H * 0.025, -H * 0.24, H * 0.05, H * 0.24);
     for (let i = 0; i < layers; i++) {
       const bottom = -H * (0.22 + 0.62 * (i / layers));
@@ -365,5 +384,5 @@ LJ.Scene = (function () {
     drawTexts(dt);
   }
 
-  return { init, resize, setZone, chopAt, autoHit, fellTree, render };
+  return { init, resize, setArea, area, chopAt, autoHit, fellTree, render };
 })();
