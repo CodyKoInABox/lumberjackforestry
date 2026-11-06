@@ -59,7 +59,8 @@ LJ.Engine = (function () {
       autoAcc: 0,
       autoBuyTimer: 0,
       contract: null,
-      contractCooldown: 20
+      contractCooldown: 20,
+      prod: LJ.Production.createRun()
     };
   }
 
@@ -162,6 +163,7 @@ LJ.Engine = (function () {
       s.tree = newTree(s);
     }
     s.bulk = raw.bulk === "max" ? "max" : [1, 10, 100].includes(raw.bulk) ? raw.bulk : 1;
+    s.prod = LJ.Production.normalize(raw.prod);
     return s;
   }
 
@@ -566,6 +568,7 @@ LJ.Engine = (function () {
     }
     updateEvents(s, dt, st);
     updateContracts(s, dt, st);
+    LJ.Production.advance(s, dt, st.price);
     if (autoOn(s, "buy")) {
       s.autoBuyTimer += dt;
       if (s.autoBuyTimer >= 1) {
@@ -595,6 +598,9 @@ LJ.Engine = (function () {
     } else {
       addTimber(s, produced);
     }
+    const prodBefore = s.cash;
+    LJ.Production.advance(s, secs * eff, st.price);
+    cash += s.cash - prodBefore;
     checkUnlocks(s);
     checkAchievements(s);
     return { seconds: secs, timber: autoOn(s, "sell") ? 0 : produced, cash, eff };

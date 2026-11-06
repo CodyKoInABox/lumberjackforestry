@@ -841,6 +841,128 @@ async function scenarioFeatures(browser) {
   await context.close();
 }
 
+const productionSeed = () =>
+  seedBase({
+    replants: 1,
+    cash: 3000000,
+    timber: 2000,
+    runTimber: 60000,
+    lifetimeTimber: 60000,
+    tutorial: 99,
+    prod: {
+      queue: 200,
+      warehouses: 1,
+      factories: 1,
+      nextLine: 3,
+      lines: [
+        { id: 1, stages: ["saw", "plane", "dry", "pack"], stations: [2, 2, 1, 1], done: 40, earned: 900 },
+        { id: 2, stages: ["saw", "pack"], stations: [1, 1], done: 0, earned: 0 }
+      ]
+    }
+  });
+
+async function scenarioProduction(browser) {
+  let { context, page } = await newPage(browser, { seed: seedBase({ tutorial: 99 }), viewport: { width: 1280, height: 900 }, label: "prod-locked" });
+  await sleep(400);
+  check("production tab stays hidden before the first replant", await page.$eval("#tab-production", (n) => n.hidden));
+  const migrated = await waitSave(page, (sv) => sv.prod && Array.isArray(sv.prod.lines), 8000);
+  check("an old save without production data loads and gains a safe default", !!migrated && migrated.prod.queue === 0 && migrated.prod.lines.length === 0);
+  await context.close();
+
+  const sendSeed = seedBase({ replants: 1, seedlings: 1, cash: 0, timber: 1000, tutorial: 99 });
+  ({ context, page } = await newPage(browser, { seed: sendSeed, viewport: { width: 1280, height: 900 }, label: "prod-send" }));
+  await sleep(300);
+  check("production tab appears after the first replant", !(await page.$eval("#tab-production", (n) => n.hidden)));
+  await page.click("#tab-production");
+  await sleep(200);
+  await page.click("#pr-send-all");
+  const sent = await waitSave(page, (sv) => sv.prod && sv.prod.queue > 0, 9000);
+  check(
+    "Send all moves timber into the queue, capped by warehouse capacity",
+    !!sent && sent.prod.queue === 300 && Math.abs(sent.timber - 700) < 1e-6,
+    "queue=" + (sent && sent.prod.queue) + " timber=" + (sent && sent.timber)
+  );
+  check("queue readout shows 300 / 300", (await text(page, "#pr-queue")) === "300 / 300", await text(page, "#pr-queue"));
+  await context.close();
+
+  ({ context, page } = await newPage(browser, { seed: seedBase({ replants: 1, cash: 5000000, tutorial: 99 }), viewport: { width: 1280, height: 900 }, label: "prod-factory" }));
+  await sleep(300);
+  await page.click("#tab-production");
+  await page.click("#pb-fa-btn");
+  const fac = await waitSave(page, (sv) => sv.prod && sv.prod.factories === 1, 9000);
+  check("buying a factory adds a line slot and charges cash", !!fac && fac.cash < 5000000 && fac.cash > 3000000, "factories=" + (fac && fac.prod.factories) + " cash=" + (fac && fac.cash));
+  check("line slots readout shows 0 / 2 after a factory", (await text(page, "#pr-slots")) === "0 / 2", await text(page, "#pr-slots"));
+  await context.close();
+
+  ({ context, page } = await newPage(browser, { seed: seedBase({ replants: 1, cash: 2000000, tutorial: 99 }), viewport: { width: 1280, height: 900 }, label: "prod-build" }));
+  await sleep(300);
+  await page.click("#tab-production");
+  await page.click('#pb-chips [data-stage="saw"]');
+  await page.click('#pb-chips [data-stage="plane"]');
+  await page.click("#pb-build");
+  const built = await waitSave(page, (sv) => sv.prod && sv.prod.lines.length === 1, 9000);
+  check(
+    "building a line from picked stages charges the stage costs",
+    !!built && built.prod.lines[0].stages.join(",") === "saw,plane" && built.cash === 2000000 - 170000,
+    "stages=" + (built && built.prod.lines[0].stages.join(",")) + " cash=" + (built && built.cash)
+  );
+  await page.click(".prod-line .flow-add");
+  const staffed = await waitSave(page, (sv) => sv.prod && sv.prod.lines[0].stations[0] === 2, 9000);
+  check("buying a station on a stage speeds that stage up", !!staffed, "stations=" + (staffed && JSON.stringify(staffed.prod.lines[0].stations)));
+  await page.click(".prod-scrap");
+  await page.click("#modal-root .btn.danger");
+  const scrapped = await waitSave(page, (sv) => sv.prod && sv.prod.lines.length === 0, 9000);
+  check("scrapping a line from its confirm dialog removes it", !!scrapped);
+  await context.close();
+
+  const runSeed = seedBase({
+    replants: 1,
+    cash: 0,
+    tutorial: 99,
+    prod: {
+      queue: 300,
+      warehouses: 0,
+      factories: 0,
+      nextLine: 2,
+      lines: [{ id: 1, stages: ["saw", "plane"], stations: [1, 1], done: 0, earned: 0 }]
+    }
+  });
+  ({ context, page } = await newPage(browser, { seed: runSeed, viewport: { width: 1280, height: 900 }, label: "prod-run" }));
+  const worked = await waitSave(page, (sv) => sv.prod && sv.prod.processed > 0 && sv.cash > 0, 12000);
+  check(
+    "a running line turns queued timber into cash and drains the queue",
+    !!worked && worked.prod.queue < 300 && worked.prod.earned > 0,
+    "processed=" + (worked && worked.prod.processed) + " cash=" + (worked && worked.cash)
+  );
+  await page.click("#tab-production");
+  await sleep(300);
+  await ensureScreenshot(page, "production-desktop.png");
+  await context.close();
+}
+
+async function scenarioProductionMobile(browser) {
+  for (const vp of MOBILE_VIEWPORTS) {
+    const { context, page } = await newPage(browser, { seed: productionSeed(), viewport: { width: vp.width, height: vp.height }, label: "prod-" + vp.name });
+    await sleep(500);
+    await page.click("#tab-production");
+    await sleep(300);
+    const report = await layoutReport(page);
+    check("[production " + vp.name + "] no horizontal overflow", report.overflow <= 1, "overflow=" + report.overflow + "px");
+    check("[production " + vp.name + "] tap targets are at least 44px", report.small.length === 0, report.small.length ? "small: " + report.small.slice(0, 6).map((t) => t.label + " " + t.w + "x" + t.h).join("; ") : "all ok");
+    const lastStep = await page.evaluate(() => {
+      const btns = document.querySelectorAll("#prod-lines .flow-add");
+      const b = btns[btns.length - 1];
+      if (!b) return false;
+      b.scrollIntoView({ block: "center" });
+      const r = b.getBoundingClientRect();
+      return r.top >= 0 && r.bottom <= window.innerHeight + 1;
+    });
+    check("[production " + vp.name + "] the last line stage can be reached by scrolling", lastStep);
+    await ensureScreenshot(page, "production-" + vp.name + ".png");
+    await context.close();
+  }
+}
+
 async function waitFor(pred, timeout) {
   const start = Date.now();
   while (Date.now() - start < timeout) {
@@ -884,6 +1006,8 @@ async function scenarioTablet(browser) {
     ["touch", scenarioTouch],
     ["visuals", scenarioVisuals],
     ["features", scenarioFeatures],
+    ["production", scenarioProduction],
+    ["production-mobile", scenarioProductionMobile],
     ["tablet", scenarioTablet]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
