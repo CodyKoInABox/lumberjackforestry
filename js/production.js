@@ -4,7 +4,6 @@ LJ.Production = (function () {
   const D = LJ.DATA;
   const P = D.production;
   const U = LJ.util;
-  const TIER_GROWTH = 3;
   const stageById = {};
   P.stages.forEach((st) => (stageById[st.id] = st));
 
@@ -12,8 +11,12 @@ LJ.Production = (function () {
     return Number.isFinite(v) && v > 0 ? v : 0;
   }
 
-  function tier(zone) {
-    return Math.pow(TIER_GROWTH, zone || 0);
+  function tierRate(zone) {
+    return Math.pow(P.rateGrowth, zone || 0);
+  }
+
+  function tierCost(zone) {
+    return Math.pow(P.costGrowth, zone || 0);
   }
 
   function createRun() {
@@ -25,7 +28,7 @@ LJ.Production = (function () {
   }
 
   function capacity(s) {
-    return capacityFor(s.prod.warehouses);
+    return capacityFor(s.prod.warehouses) * tierRate(s.zone);
   }
 
   function slots(s) {
@@ -54,7 +57,7 @@ LJ.Production = (function () {
     s.earned = finite(raw.earned);
     s.warehouses = Math.floor(finite(raw.warehouses));
     s.factories = Math.floor(finite(raw.factories));
-    s.queue = Math.min(finite(raw.queue), capacityFor(s.warehouses));
+    s.queue = Math.min(finite(raw.queue), capacityFor(s.warehouses) * Math.pow(P.rateGrowth, LJ.DATA.zones.length - 1));
     let nextLine = Math.max(1, Math.floor(finite(raw.nextLine)));
     const lines = [];
     if (Array.isArray(raw.lines)) {
@@ -72,7 +75,7 @@ LJ.Production = (function () {
   }
 
   function lineRate(line, zone) {
-    const t = tier(zone);
+    const t = tierRate(zone);
     let rate = Infinity;
     let bottleneck = 0;
     line.stages.forEach((id, i) => {
@@ -90,19 +93,19 @@ LJ.Production = (function () {
   }
 
   function stationCost(line, i, zone) {
-    return stageById[line.stages[i]].cost * tier(zone) * Math.pow(P.stationGrowth, line.stations[i]);
+    return stageById[line.stages[i]].cost * tierCost(zone) * Math.pow(P.stationGrowth, line.stations[i]);
   }
 
   function buildLineCost(stageIds, zone) {
-    return stageIds.reduce((acc, id) => acc + (stageById[id] ? stageById[id].cost : 0), 0) * tier(zone);
+    return stageIds.reduce((acc, id) => acc + (stageById[id] ? stageById[id].cost : 0), 0) * tierCost(zone);
   }
 
   function warehouseCost(s) {
-    return P.warehouse.cost * tier(s.zone) * Math.pow(P.warehouse.growth, s.prod.warehouses);
+    return P.warehouse.cost * tierCost(s.zone) * Math.pow(P.warehouse.growth, s.prod.warehouses);
   }
 
   function factoryCost(s) {
-    return P.factory.cost * tier(s.zone) * Math.pow(P.factory.growth, s.prod.factories);
+    return P.factory.cost * tierCost(s.zone) * Math.pow(P.factory.growth, s.prod.factories);
   }
 
   function advance(s, dt, price) {
@@ -213,7 +216,8 @@ LJ.Production = (function () {
     factoryCost,
     capacity,
     slots,
-    tier,
+    tierRate,
+    tierCost,
     send,
     buyWarehouse,
     buyFactory,

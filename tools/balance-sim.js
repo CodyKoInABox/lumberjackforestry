@@ -58,7 +58,8 @@ function simulate(L, profile, seed) {
   const totalNodes = D.research.length;
   const effCps = profile.away ? (profile.cps * profile.active) / (profile.active + profile.away) : profile.cps;
   const timeline = [];
-    let nextSnap = 1800;
+  const zoneEntry = {};
+  let nextSnap = 1800;
 
   let act = 0;
   const msA = {};
@@ -70,6 +71,12 @@ function simulate(L, profile, seed) {
   };
 
   function checkMilestones() {
+    const st = E.stats(s);
+    if (zoneEntry[s.zone] === undefined) {
+      zoneEntry[s.zone] = { t, logs: st.total, price: st.price, raw: st.total * st.price, prod: 0 };
+    }
+    const inc = s.prod.lines.length ? L.Production.summary(s, st.price).income : 0;
+    if (inc > zoneEntry[s.zone].prod) zoneEntry[s.zone].prod = inc;
     for (let k = 1; k < D.zones.length; k++) if (s.zone >= k) mark("zone" + k);
     for (let i = 1; i < D.tools.length; i++) if (s.tool >= i) mark("tool:" + D.tools[i].id);
     for (const m of D.machines) {
@@ -125,11 +132,34 @@ function simulate(L, profile, seed) {
     return best;
   }
 
+  function productionDecide() {
+    const P = L.Production;
+    if (!(s.replants >= 1)) return;
+    const all = D.production.stages.map((x) => x.id);
+    for (let guard = 0; guard < 50; guard++) {
+      const sum = P.summary(s, E.stats(s).price);
+      if (sum.lines < sum.slots && s.cash >= P.buildLineCost(all, s.zone)) {
+        P.buildLine(s, all);
+        continue;
+      }
+      if (sum.lines >= sum.slots && s.cash >= P.factoryCost(s) + P.buildLineCost(all, s.zone)) {
+        P.buyFactory(s);
+        continue;
+      }
+      if (s.prod.queue >= sum.capacity - 1 && s.cash >= P.warehouseCost(s)) {
+        P.buyWarehouse(s);
+        continue;
+      }
+      break;
+    }
+  }
+
   function decide() {
     const st0 = E.stats(s);
     for (const [key, node] of [["sell", "mkt2"], ["fell", "aut1"], ["buy", "aut2"]]) {
       if (s.nodes[node] && !s.auto[key]) E.toggleAuto(s, key);
     }
+    productionDecide();
     if (!E.autoOn(s, "sell") && s.timber > 0) E.sell(s, st0, false);
 
     for (;;) {
@@ -163,6 +193,7 @@ function simulate(L, profile, seed) {
     const clicks = Math.floor(clickAcc);
     clickAcc -= clicks;
     for (let i = 0; i < clicks; i++) E.hit(s, st, false);
+    if (s.replants >= 1) L.Production.send(s, s.timber);
     E.tick(s, sec);
     E.drain();
     t += sec;
@@ -220,7 +251,7 @@ function simulate(L, profile, seed) {
   checkMilestones();
   decide();
   checkMilestones();
-  return { ms, msA, timeline };
+  return { ms, msA, timeline, zoneEntry };
 }
 
 function median(xs) {
@@ -228,6 +259,34 @@ function median(xs) {
   if (!v.length) return undefined;
   const m = v.length >> 1;
   return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+}
+
+function productionEconomics(L, rawByZone) {
+  const P = L.Production;
+  const D = L.DATA;
+  const all = D.production.stages.map((x) => x.id);
+  const rows = [];
+  for (let z = 0; z < D.zones.length; z++) {
+    const s = { zone: z, prod: P.createRun(), cash: 0 };
+    const cost = P.buildLineCost(all, z);
+    const lr = P.lineRate({ stages: all, stations: all.map(() => 1) }, z);
+    const V = P.lineValue({ stages: all });
+    const raw = rawByZone[z] || { logs: NaN, price: 1 };
+    const gain = lr.rate * (V - 1) * raw.price;
+    rows.push({
+      zone: z,
+      rawLogs: raw.logs,
+      lineLogs: lr.rate,
+      value: V,
+      lineCost: cost,
+      linePayback: cost / gain / 3600,
+      factoryCost: P.factoryCost(s),
+      factoryPayback: (P.factoryCost(s) + cost) / gain / 3600,
+      warehouseCost: P.warehouseCost(s),
+      coverage: lr.rate / raw.logs
+    });
+  }
+  return rows;
 }
 
 function main() {
@@ -249,9 +308,16 @@ function main() {
     "full"
   ];
   const out = {};
+  const zoneRuns = {};
   for (const [pk, p] of Object.entries(PROFILES)) {
     const runs = [];
     for (let seed = 1; seed <= SEEDS; seed++) runs.push(simulate(L, p, seed * 7919 + 17));
+    zoneRuns[pk] = {};
+    for (const r of runs) {
+      for (const [z, e] of Object.entries(r.zoneEntry)) {
+        (zoneRuns[pk][z] = zoneRuns[pk][z] || []).push(e);
+      }
+    }
     const row = {};
     for (const k of keys) {
       const vals = runs.map((r) => r.ms[k]);
@@ -276,6 +342,44 @@ function main() {
   for (const pk of Object.keys(PROFILES)) {
     const f = out[pk].full;
     console.log(`active-play to full run (${pk}): ${f.medA === undefined ? "never" : (f.medA / 3600).toFixed(2) + "h"}`);
+  }
+
+  const rawByZone = {};
+  const avg = zoneRuns.average || {};
+  for (const z of Object.keys(avg)) {
+    const e = avg[z];
+    rawByZone[z] = {
+      logs: median(e.map((x) => x.logs)),
+      price: median(e.map((x) => x.price)) || 1,
+      raw: median(e.map((x) => x.raw)),
+      prod: median(e.map((x) => x.prod))
+    };
+  }
+  console.log("\nzone entry (median of seeds, average profile)");
+  console.log("zone".padEnd(16) + "raw cash/s".padStart(14) + "raw logs/s".padStart(14) + "prod cash/s".padStart(14));
+  for (const z of Object.keys(rawByZone)) {
+    const r = rawByZone[z];
+    const name = D.zones[z].name;
+    console.log(name.padEnd(16) + Number(r.raw).toExponential(2).padStart(14) + Number(r.logs).toExponential(2).padStart(14) + Number(r.prod).toExponential(2).padStart(14));
+  }
+
+  const rows = productionEconomics(L, rawByZone);
+  console.log("\nfull-chain line economics per zone (value vs raw sale of the same logs)");
+  console.log(
+    "zone".padEnd(16) +
+      ["value×", "line logs/s", "line cost", "line payback h", "factory+line h", "warehouse", "coverage"].map((h) => h.padStart(16)).join("")
+  );
+  for (const r of rows) {
+    const cells = [
+      r.value.toFixed(2),
+      r.lineLogs.toExponential(2),
+      r.lineCost.toExponential(2),
+      r.linePayback.toFixed(2),
+      r.factoryPayback.toFixed(2),
+      r.warehouseCost.toExponential(2),
+      Number.isFinite(r.coverage) ? (r.coverage * 100).toFixed(4) + "%" : "n/a"
+    ];
+    console.log(D.zones[r.zone].name.padEnd(16) + cells.map((c) => String(c).padStart(16)).join(""));
   }
 }
 
