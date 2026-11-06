@@ -1102,6 +1102,89 @@ async function scenarioTablet(browser) {
   await context.close();
 }
 
+async function scenarioSeasons(browser) {
+  const clear = { id: "clear", left: 9999 };
+  const cases = [
+    ["Spring", 0, clear, "🌱 Spring · 🌤️ Clear"],
+    ["Summer", 300, clear, "☀️ Summer · 🌤️ Clear"],
+    ["Winter", 900, { id: "snow", left: 9999 }, "❄️ Winter · 🌨️ Snow"]
+  ];
+  for (const [name, playtime, weather, expected] of cases) {
+    const { context, page } = await newPage(browser, {
+      seed: seedBase({ playtime, weather, machines: { crew: 10 }, runUnlocked: { crew: true } }),
+      label: "season-" + name
+    });
+    await sleep(400);
+    const chip = await text(page, "#season-chip");
+    check(name + " season chip shows season and weather", chip === expected, chip);
+    if (name === "Winter") await ensureScreenshot(page, "seasons-winter.png");
+    await context.close();
+  }
+
+  const { context: sc, page: sp } = await newPage(browser, {
+    seed: seedBase({ playtime: 0, weather: { id: "clear", left: 9999 }, machines: { crew: 10 }, runUnlocked: { crew: true } }),
+    label: "season-stats"
+  });
+  const mult = await sp.evaluate(() => {
+    const mk = (playtime, weather) =>
+      LJ.Engine.stats(
+        LJ.Engine.normalize(
+          { v: 1, playtime, weather: { id: weather, left: 9999 }, machines: { crew: 10 }, runUnlocked: { crew: true } },
+          Date.now()
+        )
+      );
+    const spring = mk(0, "clear");
+    const summer = mk(300, "clear");
+    const winter = mk(900, "snow");
+    const autumn = mk(600, "clear");
+    return {
+      spring: spring.machineMult,
+      summer: summer.machineMult,
+      winter: winter.machineMult,
+      winterPrice: winter.price,
+      autumnPrice: autumn.price
+    };
+  });
+  check("summer machines run faster than spring", mult.summer > mult.spring, JSON.stringify(mult));
+  check("winter snow slows machines below spring", mult.winter < mult.spring, JSON.stringify(mult));
+  check("winter sale prices dip below autumn", mult.winterPrice < mult.autumnPrice, JSON.stringify(mult));
+  await sc.close();
+
+  const { context: tc, page: tp } = await newPage(browser, {
+    seed: seedBase({ playtime: 299.2, weather: { id: "clear", left: 9999 } }),
+    label: "season-change"
+  });
+  check("entering a new season shows a toast", await waitToast(tp, "New season: Summer", 6000));
+  await tc.close();
+
+  const { context: wc, page: wp } = await newPage(browser, {
+    seed: seedBase({ weather: { id: "rain", left: 0.5 } }),
+    label: "weather-rotate"
+  });
+  const rotated = await waitSave(wp, (s) => s.weather && s.weather.left > 60, 8000);
+  check("weather rotates after its timer runs out", !!rotated && rotated.weather.left > 60, rotated ? JSON.stringify(rotated.weather) : "no save");
+  await wc.close();
+
+  const { context: oc, page: op } = await newPage(browser, { seed: seedBase({ playtime: 900 }), label: "season-default" });
+  const withDefaults = await waitSave(op, (s) => typeof s.season === "number" && s.weather && typeof s.weather.id === "string", 8000);
+  check("an old save without season fields gets season and weather defaults", !!withDefaults && withDefaults.season === 3, withDefaults ? "season=" + withDefaults.season : "no save");
+  await oc.close();
+
+  const { context: mc, page: mp } = await newPage(browser, {
+    seed: seedBase({ playtime: 900, weather: { id: "snow", left: 9999 }, machines: { crew: 10 }, runUnlocked: { crew: true }, cash: 5000, timber: 200 }),
+    viewport: { width: 360, height: 740 },
+    touch: true,
+    label: "season-mobile"
+  });
+  await sleep(400);
+  const mobile = await mp.evaluate(() => ({
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    chip: document.getElementById("season-chip").textContent.trim()
+  }));
+  check("360px: season chip shows with no horizontal overflow", mobile.overflow <= 1 && mobile.chip.length > 0, JSON.stringify(mobile));
+  await mc.close();
+}
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: CHROME || undefined,
@@ -1124,7 +1207,8 @@ async function scenarioTablet(browser) {
     ["production-mobile", scenarioProductionMobile],
     ["sell-floor", scenarioSellFloor],
     ["auto-production", scenarioAutoProduction],
-    ["tablet", scenarioTablet]
+    ["tablet", scenarioTablet],
+    ["seasons", scenarioSeasons]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
   for (const [name, fn] of suites) {

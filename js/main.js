@@ -47,6 +47,12 @@
           UI.toast({ icon: "🗺️", title: "New terrain: " + z.name, text: z.blurb, tone: "gold" });
           break;
         }
+        case "season": {
+          const se = D.seasons.find((x) => x.id === ev.id);
+          A.zone();
+          UI.toast({ icon: se.icon, title: "New season: " + se.name, text: se.blurb, tone: "gold" });
+          break;
+        }
         case "replant":
           Scene.setZone(0);
           break;
