@@ -126,6 +126,7 @@
             <button class="tab" id="tab-upgrades" role="tab" type="button">Upgrades <span class="badge" id="badge-upgrades" hidden>0</span></button>
             <button class="tab" id="tab-research" role="tab" type="button">Research <span class="badge" id="badge-research" hidden>0</span></button>
             <button class="tab" id="tab-replant" role="tab" type="button">Replant</button>
+            <button class="tab" id="tab-production" role="tab" type="button" hidden>Production</button>
             <button class="tab" id="tab-log" role="tab" type="button">Log</button>
             <button class="tab" id="tab-settings" role="tab" type="button">Settings</button>
           </nav>
@@ -173,6 +174,59 @@
                 <div class="rp-gain" id="rp-gain"></div>
                 <button class="btn primary wide" id="rp-btn" type="button" disabled>Not yet</button>
               </div>
+            </section>
+
+            <section class="panel-tab" id="panel-production" role="tabpanel" hidden>
+              <p class="panel-intro">Send timber to the mill floor. Lines process logs in order and sell the output as they run. Stations speed up a stage, and the slowest stage sets the pace.</p>
+              <div class="prod-stats">
+                <div class="stat"><span>Queue</span><strong id="pr-queue">0</strong></div>
+                <div class="stat"><span>Throughput</span><strong id="pr-throughput">0/s</strong></div>
+                <div class="stat"><span>Income at market</span><strong id="pr-income">$0/s</strong></div>
+                <div class="stat"><span>Lines running</span><strong id="pr-slots">0 / 1</strong></div>
+              </div>
+              <div class="track"><div class="track-fill" id="pr-cap-bar"></div></div>
+              <p class="fineprint" id="pr-room"></p>
+              <div class="prod-send">
+                <button class="btn" id="pr-send-quarter" type="button">Send ¼</button>
+                <button class="btn" id="pr-send-half" type="button">Send ½</button>
+                <button class="btn primary" id="pr-send-all" type="button">Send all</button>
+              </div>
+
+              <h3 class="section-h">Expand</h3>
+              <div class="prod-buys">
+                <div class="card" id="pb-warehouse">
+                  <div class="card-icon" aria-hidden="true">🏬</div>
+                  <div class="card-body">
+                    <div class="card-name" id="pb-wh-name">Warehouse</div>
+                    <div class="card-desc" id="pb-wh-desc"></div>
+                    <div class="card-meta" id="pb-wh-meta"></div>
+                  </div>
+                  <button class="card-btn" id="pb-wh-btn" type="button">Buy</button>
+                </div>
+                <div class="card" id="pb-factory">
+                  <div class="card-icon" aria-hidden="true">🏭</div>
+                  <div class="card-body">
+                    <div class="card-name" id="pb-fa-name">Factory</div>
+                    <div class="card-desc" id="pb-fa-desc"></div>
+                    <div class="card-meta" id="pb-fa-meta"></div>
+                  </div>
+                  <button class="card-btn" id="pb-fa-btn" type="button">Buy</button>
+                </div>
+              </div>
+
+              <h3 class="section-h">Lines</h3>
+              <p class="fineprint" id="prod-empty">No lines yet. Build one below.</p>
+              <div class="prod-lines" id="prod-lines"></div>
+
+              <h3 class="section-h">Build a line</h3>
+              <div class="prod-chips" id="pb-chips">
+                <button class="chip-btn" type="button" data-stage="saw" aria-pressed="false">🪚 Sawing</button>
+                <button class="chip-btn" type="button" data-stage="plane" aria-pressed="false">🪵 Planing</button>
+                <button class="chip-btn" type="button" data-stage="dry" aria-pressed="false">🔥 Kiln Drying</button>
+                <button class="chip-btn" type="button" data-stage="pack" aria-pressed="false">📦 Packaging</button>
+              </div>
+              <p class="fineprint" id="pb-info"></p>
+              <button class="btn primary wide" id="pb-build" type="button" disabled>Build line</button>
             </section>
 
             <section class="panel-tab" id="panel-log" role="tabpanel" hidden>
@@ -231,10 +285,13 @@
 
     <script src="js/util.js"></script>
     <script src="js/data.js"></script>
+    <script src="js/production-data.js"></script>
+    <script src="js/production.js"></script>
     <script src="js/engine.js"></script>
     <script src="js/audio.js"></script>
     <script src="js/scene.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/production-ui.js"></script>
     <script src="js/main.js"></script>
   </body>
 </html>

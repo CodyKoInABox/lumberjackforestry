@@ -7,7 +7,7 @@ LJ.UI = (function () {
   const A = LJ.Audio;
   const $ = (id) => document.getElementById(id);
 
-  const TABS = ["tools", "fleet", "upgrades", "research", "replant", "log", "settings"];
+  const TABS = ["tools", "fleet", "upgrades", "research", "replant", "production", "log", "settings"];
   const AUTOS = [
     { key: "sell", node: "mkt2", title: "Auto-Sell", icon: "🧾", desc: "Sells all timber on every tick at the market price." },
     { key: "fell", node: "aut1", title: "Auto-Fell", icon: "🤚", desc: "Your saw swings on its own." },
@@ -575,6 +575,8 @@ LJ.UI = (function () {
     renderFleetStrip(s, st);
     renderBadges(s, st);
     renderTutorial(s);
+    const prodTab = el("tab-production");
+    if (prodTab) prodTab.hidden = !(s.replants >= 1);
     switch (activeTab) {
       case "tools":
         renderTools(s, st);
@@ -591,6 +593,9 @@ LJ.UI = (function () {
         break;
       case "replant":
         renderReplant(s);
+        break;
+      case "production":
+        LJ.ProductionUI.render(s, st);
         break;
       case "log":
         renderLog(s);
@@ -902,6 +907,7 @@ LJ.UI = (function () {
   function init(g) {
     game = g;
     bind();
+    LJ.ProductionUI.init(g, { toast, openModal, refresh });
     A.setOn(game.s.sound);
     applyPrefs();
     switchTab(activeTab);
