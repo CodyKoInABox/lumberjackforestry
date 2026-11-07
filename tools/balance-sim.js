@@ -86,6 +86,7 @@ function simulate(L, profile, seed) {
     if (s.auto.buy) mark("auto_buy");
     for (const m of D.sawmill) if (s.mill[m.id]) mark("mill:" + m.id);
     for (const m of D.machines) if (s.overhauls[m.id] >= 1) mark("overhaul1:" + m.id);
+    for (const k of [1, 4, 8]) if (s.trucks >= k) mark("truck" + k);
     if (full()) mark("full");
   }
 
@@ -155,6 +156,7 @@ function simulate(L, profile, seed) {
       else if (a.kind === "overhaul") E.overhaul(s, a.id);
       else E.buyMill(s, a.id);
     }
+    while (E.hireTruck(s));
   }
 
   function step(sec) {
@@ -245,6 +247,7 @@ function main() {
     "overhaul1:crew",
     "overhaul1:harvester",
     "overhaul1:processor",
+    "truck1", "truck4", "truck8",
     "tree_done",
     "full"
   ];
