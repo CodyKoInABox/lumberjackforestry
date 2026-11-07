@@ -361,6 +361,23 @@ textarea {
   transition: width 0.3s ease;
 }
 
+.crew-status {
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.crew-status-text {
+  opacity: 0.9;
+}
+
+.crew-track {
+  margin-top: 6px;
+}
+
+.crew-track.low .track-fill {
+  background: linear-gradient(90deg, #e0823a, #f0c25a);
+}
+
 /* Stage foot */
 
 .card-icon.has-photo {

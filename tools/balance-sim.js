@@ -86,6 +86,8 @@ function simulate(L, profile, seed) {
     if (s.auto.buy) mark("auto_buy");
     for (const m of D.sawmill) if (s.mill[m.id]) mark("mill:" + m.id);
     for (const m of D.machines) if (s.overhauls[m.id] >= 1) mark("overhaul1:" + m.id);
+    for (let k = 1; k <= 5; k++) if (E.crewSkillLevel(s) >= k) mark("crew_skill" + k);
+    if (s.morale < 50) mark("morale_below_50");
     if (full()) mark("full");
   }
 
@@ -245,6 +247,8 @@ function main() {
     "overhaul1:crew",
     "overhaul1:harvester",
     "overhaul1:processor",
+    "crew_skill1", "crew_skill2", "crew_skill3", "crew_skill4", "crew_skill5",
+    "morale_below_50",
     "tree_done",
     "full"
   ];
