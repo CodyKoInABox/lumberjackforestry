@@ -1102,6 +1102,85 @@ async function scenarioTablet(browser) {
   await context.close();
 }
 
+async function scenarioTrucks(browser) {
+  const truckSeed = (overrides) =>
+    seedBase(Object.assign({ tutorial: 99, runTimber: 2e5, lifetimeTimber: 2e5, cash: 1e6, zone: 2, runUnlocked: { crew: true, skidder: true, feller: true, grapple: true, forwarder: true, "tigrix-f550": true }, machines: { crew: 10 }, achievements: { "crew-chief": true, "crew-of-twenty": true } }, overrides || {}));
+
+  const eng = await (async () => {
+    const { context, page } = await newPage(browser, { seed: truckSeed({}), label: "truck-engine" });
+    await sleep(200);
+    const r = await page.evaluate(() => {
+      const E = LJ.Engine;
+      const now = Date.now();
+      const mk = (raw) => E.normalize(raw, now);
+      const base = { runUnlocked: { crew: true }, machines: { crew: 10 }, runTimber: 2e5, cash: 1e6 };
+      const priceOf = (extra) => E.stats(mk(Object.assign({}, base, extra))).price;
+      const out = {};
+      out.price4 = priceOf({ trucks: 4 }) / priceOf({ trucks: 0 });
+      out.price12 = priceOf({ trucks: 12 }) / priceOf({ trucks: 0 });
+      out.cap = mk({ trucks: 12 }).trucks;
+      out.cost1 = E.truckCost(mk({ trucks: 1 }));
+      out.rateSame = E.stats(mk(Object.assign({}, base, { trucks: 4 }))).rates.crew === E.stats(mk(Object.assign({}, base, { trucks: 0 }))).rates.crew;
+      const bought = mk(Object.assign({}, base, { trucks: 0, cash: 1e6 }));
+      out.hireOk = E.hireTruck(bought);
+      out.cashAfter = bought.cash;
+      out.trucksAfter = bought.trucks;
+      const poor = mk(Object.assign({}, base, { trucks: 0, cash: 1000 }));
+      out.hirePoor = E.hireTruck(poor);
+      const early = mk({ runTimber: 5e4, cash: 1e6 });
+      out.hireEarly = E.hireTruck(early);
+      const full = mk(Object.assign({}, base, { trucks: 8, cash: 1e12 }));
+      out.hireFull = E.hireTruck(full);
+      E.drain();
+      const rp = mk({ runTimber: 1e7, cash: 1e6, trucks: 3, machines: { crew: 2 }, runUnlocked: { crew: true } });
+      E.replant(rp, now);
+      out.replantTrucks = rp.trucks;
+      out.oldTrucks = mk({ v: 1 }).trucks;
+      return out;
+    });
+    await context.close();
+    return r;
+  })();
+  check("each truck adds 4% to the sale price", Math.abs(eng.price4 - 1.16) < 1e-9, "ratio=" + eng.price4);
+  check("trucks cap at eight (+32%)", eng.cap === 8 && Math.abs(eng.price12 - 1.32) < 1e-9, "cap=" + eng.cap + " ratio=" + eng.price12);
+  check("truck cost grows 2.5x per truck", eng.cost1 === 125000, "cost=" + eng.cost1);
+  check("trucks never change machine output", eng.rateSame === true, "crew rate changed");
+  check("hiring a truck spends cash and adds one", eng.hireOk && eng.cashAfter === 1e6 - 5e4 && eng.trucksAfter === 1, JSON.stringify([eng.hireOk, eng.cashAfter, eng.trucksAfter]));
+  check("hiring fails without enough cash", eng.hirePoor === false, "hired with 1000 cash");
+  check("hiring fails before the unlock", eng.hireEarly === false, "hired below unlock");
+  check("hiring fails at the cap", eng.hireFull === false, "hired past cap");
+  check("replanting resets trucks", eng.replantTrucks === 0, "trucks=" + eng.replantTrucks);
+  check("old saves have no trucks", eng.oldTrucks === 0, "trucks=" + eng.oldTrucks);
+
+  const { context: pc, page: pp } = await newPage(browser, { seed: truckSeed({ trucks: 2 }), label: "truck-panel" });
+  await sleep(300);
+  await pp.click("#tab-fleet");
+  await sleep(300);
+  const meta = await pp.$eval('#list-fleet [data-key="truck"]', (c) => c.textContent);
+  check("fleet shows the truck row with owned count", meta.includes("Owned 2 / 8") && meta.includes("×1.08"), meta.slice(0, 160));
+  await pp.$eval('#list-fleet [data-key="truck"]', (n) => n.scrollIntoView({ block: "center" }));
+  await sleep(200);
+  await ensureScreenshot(pp, "log-trucks.png");
+
+  const before = await readSave(pp);
+  await pp.click('#list-fleet [data-key="truck"] button');
+  const hired = await waitSave(pp, (s) => s.trucks === 3, 6000);
+  check("hire button adds a truck and spends its cost", !!hired && hired.trucks === 3 && Math.abs(hired.cash - (1e6 - 312500)) < 1e4, hired ? "trucks=" + hired.trucks + " cash=" + hired.cash : "no save");
+  await pc.close();
+
+  const { context: mc, page: mp } = await newPage(browser, {
+    seed: truckSeed({ trucks: 8 }), viewport: { width: 360, height: 740 }, touch: true, label: "truck-mobile"
+  });
+  await sleep(300);
+  await mp.tap("#tab-fleet");
+  await sleep(300);
+  const overflow = await mp.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const label = await mp.$eval('#list-fleet [data-key="truck"] button', (b) => b.textContent.trim());
+  check("360px: truck row fits with no horizontal overflow", overflow <= 1, "overflow=" + overflow);
+  check("a maxed truck fleet shows Max", label === "Max", "label=" + label);
+  await mc.close();
+}
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: CHROME || undefined,
@@ -1124,7 +1203,8 @@ async function scenarioTablet(browser) {
     ["production-mobile", scenarioProductionMobile],
     ["sell-floor", scenarioSellFloor],
     ["auto-production", scenarioAutoProduction],
-    ["tablet", scenarioTablet]
+    ["tablet", scenarioTablet],
+    ["trucks", scenarioTrucks]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
   for (const [name, fn] of suites) {

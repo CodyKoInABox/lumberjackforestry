@@ -73,6 +73,14 @@
           A.error();
           UI.toast({ icon: "⌛", title: "Contract expired", text: ev.title, tone: "warn" });
           break;
+        case "truck":
+          A.buy();
+          UI.toast({
+            icon: "🚛",
+            title: "Log truck " + ev.count + " hired",
+            text: "Hauling direct to the mill yard: sale price now ×" + ev.mult.toFixed(2) + "."
+          });
+          break;
         case "achievement": {
           const a = E.byId[ev.id];
           A.achievement();

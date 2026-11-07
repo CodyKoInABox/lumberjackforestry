@@ -338,6 +338,30 @@ LJ.UI = (function () {
           : null
       };
     });
+    const t = st.truck;
+    const truckUnlocked = s.runTimber >= t.unlock;
+    const truckAffordable = t.count < t.max && s.cash >= t.cost;
+    items.push({
+      key: "truck",
+      icon: "🚛",
+      name: "Log Truck",
+      desc: "Haul logs straight to the mill yard for a better price. Each truck adds +" + Math.round(t.step * 100) + "% to every sale.",
+      meta: truckUnlocked
+        ? "Owned " + t.count + " / " + t.max + " · sale price ×" + t.mult.toFixed(2)
+        : "Reach " + U.fmt(t.unlock) + " run timber to unlock.",
+      state: !truckUnlocked ? "locked" : t.count >= t.max ? "owned" : truckAffordable ? "can" : "cant",
+      btn: !truckUnlocked
+        ? "Locked"
+        : t.count >= t.max
+          ? "Max"
+          : "Hire · " + U.money(t.cost),
+      disabled: !truckUnlocked || !truckAffordable,
+      onClick: truckUnlocked && truckAffordable
+        ? () => {
+            if (E.hireTruck(s)) refresh();
+          }
+        : null
+    });
     reconcile(el("list-fleet"), items);
   }
 
