@@ -1748,6 +1748,109 @@ async function scenarioBiodiversity(browser) {
   check("360px: biodiversity meter fits with no horizontal overflow", overflow <= 1 && tracks.every((w) => w > 20), "overflow=" + overflow + " tracks=" + tracks.map(Math.round).join(","));
   await mc.close();
 }
+async function scenarioCrew(browser) {
+  const crewSeed = (overrides) =>
+    seedBase(Object.assign({ tutorial: 99, machines: { crew: 40 }, runUnlocked: { crew: true }, morale: 100 }, overrides || {}));
+
+  const eng = await (async () => {
+    const { context, page } = await newPage(browser, { seed: crewSeed({}), label: "crew-engine" });
+    await sleep(200);
+    const r = await page.evaluate(() => {
+      const E = LJ.Engine;
+      const now = Date.now();
+      const mk = (raw) => E.normalize(raw, now);
+      const crewRate = (raw) => E.stats(mk(raw)).rates.crew;
+      const base = { machines: { crew: 10 }, runUnlocked: { crew: true } };
+      const out = {};
+      out.moraleRatio = crewRate(Object.assign({}, base, { morale: 0 })) / crewRate(Object.assign({}, base, { morale: 100 }));
+      out.skillRatio = crewRate(Object.assign({}, base, { morale: 100, crewXp: 1e6 })) / crewRate(Object.assign({}, base, { morale: 100 }));
+      out.skillLevel = [0, 1e4, 1e6, 1e8].map((x) => E.crewSkillLevel(mk({ crewXp: x })));
+      const drained = mk(Object.assign({}, base, { machines: { crew: 30 }, morale: 100 }));
+      E.tick(drained, 60);
+      out.drainMorale = drained.morale;
+      const recovered = mk(Object.assign({}, base, { morale: 50 }));
+      E.tick(recovered, 60);
+      out.recoverMorale = recovered.morale;
+      const floored = mk(Object.assign({}, base, { machines: { crew: 40 }, morale: 0.5 }));
+      E.tick(floored, 60);
+      out.floorMorale = floored.morale;
+      const xp = mk(Object.assign({}, base, { morale: 100 }));
+      const rate = E.stats(xp).rates.crew;
+      E.tick(xp, 60);
+      out.xpGain = xp.crewXp;
+      out.xpExpected = rate * 60;
+      E.drain();
+      const lvl = mk(Object.assign({}, base, { morale: 100, crewXp: 9999.9 }));
+      E.tick(lvl, 60);
+      out.levelEvent = E.drain().filter((e) => e.type === "crewSkill").map((e) => e.level);
+      const rp = mk({ runTimber: 1e7, morale: 20, crewXp: 2e6, machines: { crew: 5 }, runUnlocked: { crew: true } });
+      E.replant(rp, now);
+      out.replantMorale = rp.morale;
+      out.replantXp = rp.crewXp;
+      const old = mk({ v: 1, machines: { crew: 3 } });
+      out.oldMorale = old.morale;
+      out.oldXp = old.crewXp;
+      return out;
+    });
+    await context.close();
+    return r;
+  })();
+  check("morale scales crew output down to 80% at zero morale", Math.abs(eng.moraleRatio - 0.8) < 1e-9, "ratio=" + eng.moraleRatio);
+  check("crew skill 3 adds 12% crew output", Math.abs(eng.skillRatio - 1.12) < 1e-9, "ratio=" + eng.skillRatio);
+  check("skill level counts thresholds crossed", JSON.stringify(eng.skillLevel) === "[0,1,3,5]", JSON.stringify(eng.skillLevel));
+  check("30 crews drain morale over a minute", Math.abs(eng.drainMorale - 98.2) < 1e-6, "morale=" + eng.drainMorale);
+  check("10 crews let morale recover", Math.abs(eng.recoverMorale - 51.8) < 1e-6, "morale=" + eng.recoverMorale);
+  check("morale never goes below zero", eng.floorMorale === 0, "morale=" + eng.floorMorale);
+  check("crew output adds skill XP at its real rate", Math.abs(eng.xpGain - eng.xpExpected) < 1e-6 * Math.max(1, eng.xpExpected), eng.xpGain + " vs " + eng.xpExpected);
+  check("crossing a threshold emits a skill level event", JSON.stringify(eng.levelEvent) === "[1]", JSON.stringify(eng.levelEvent));
+  check("replanting resets morale", eng.replantMorale === 100, "morale=" + eng.replantMorale);
+  check("replanting keeps skill XP", eng.replantXp === 2e6, "xp=" + eng.replantXp);
+  check("old saves start with full morale and no skill XP", eng.oldMorale === 100 && eng.oldXp === 0, eng.oldMorale + " / " + eng.oldXp);
+
+  const { context: pc, page: pp } = await newPage(browser, {
+    seed: crewSeed({ runTimber: 5e5, crewXp: 2.5e6 }), label: "crew-panel"
+  });
+  await sleep(300);
+  await pp.click("#tab-fleet");
+  await sleep(300);
+  const panel = await text(pp, "#crew-status-text");
+  check("fleet panel shows morale, output and skill", panel.includes("Morale 100%") && panel.includes("Crew output ×1.12") && panel.includes("Skill 3/5"), panel);
+  check("fleet panel shows the next skill level target", panel.includes("to level 4"), panel);
+  const meterNow = await pp.$eval("#crew-morale-meter", (m) => m.getAttribute("aria-valuenow"));
+  check("morale meter reports the current value", meterNow === "100", "aria-valuenow=" + meterNow);
+  const drained = await waitSave(pp, (s) => s.morale < 99.9, 12000);
+  check("morale drains while more than ten crews work", !!drained && drained.morale < 99.9, drained ? "morale=" + drained.morale : "no save");
+  await ensureScreenshot(pp, "crew-morale.png");
+  await pc.close();
+
+  const { context: lc, page: lp } = await newPage(browser, { seed: crewSeed({ crewXp: 9999.99, achievements: { "crew-chief": true, "crew-of-twenty": true } }), label: "crew-levelup" });
+  check("a skill level-up shows a toast", await waitToast(lp, "Crew skill level 1", 8000), "Crew skill level 1 toast");
+  await lc.close();
+
+  const { context: rc, page: rp } = await newPage(browser, {
+    seed: crewSeed({ runTimber: 1e7, lifetimeTimber: 1e7, morale: 30, crewXp: 2e6 }), label: "crew-replant"
+  });
+  await sleep(300);
+  await rp.click("#tab-replant");
+  await rp.click("#rp-btn");
+  await rp.click("#modal-root .modal-foot .btn.primary");
+  const replanted = await waitSave(rp, (s) => s.replants === 1, 6000);
+  check("replant keeps skill XP and restores morale in the save", !!replanted && replanted.morale === 100 && replanted.crewXp >= 2e6, replanted ? "morale=" + replanted.morale + " xp=" + replanted.crewXp : "no save");
+  await rc.close();
+
+  const { context: mc, page: mp } = await newPage(browser, {
+    seed: crewSeed({ runTimber: 5e5, crewXp: 2.5e6, morale: 35 }), viewport: { width: 360, height: 740 }, touch: true, label: "crew-mobile"
+  });
+  await sleep(300);
+  await mp.tap("#tab-fleet");
+  await sleep(300);
+  const overflow = await mp.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const fillW = await mp.$eval("#crew-morale-fill", (f) => f.getBoundingClientRect().width);
+  const low = await mp.$eval("#crew-morale-meter", (m) => m.classList.contains("low"));
+  check("360px: crew status fits with no horizontal overflow", overflow <= 1, "overflow=" + overflow);
+  check("low morale shows the warning bar", low && fillW > 0, "low=" + low + " width=" + fillW);
+  await mc.close();
+}
 (async () => {
   const browser = await chromium.launch({
     executablePath: CHROME || undefined,
@@ -1779,7 +1882,8 @@ async function scenarioBiodiversity(browser) {
     ["seasons", scenarioSeasons],
     ["forest-fires", scenarioForestFires],
     ["certification", scenarioCertification],
-    ["biodiversity", scenarioBiodiversity]
+    ["biodiversity", scenarioBiodiversity],
+    ["crew", scenarioCrew]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
   for (const [name, fn] of suites) {

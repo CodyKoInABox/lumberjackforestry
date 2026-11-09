@@ -91,6 +91,15 @@
           A.error();
           UI.toast({ icon: "⌛", title: "Contract expired", text: ev.title, tone: "warn" });
           break;
+        case "crewSkill":
+          A.achievement();
+          UI.toast({
+            icon: "👷",
+            title: "Crew skill level " + ev.level,
+            text: "Ground Crews now work " + Math.round((ev.mult - 1) * 100) + "% faster. Skill is kept across replants.",
+            tone: "gold"
+          });
+          break;
         case "achievement": {
           const a = E.byId[ev.id];
           A.achievement();

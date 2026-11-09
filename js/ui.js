@@ -375,6 +375,21 @@ LJ.UI = (function () {
     openModal({ title: m.name, body: wrap, actions: [{ label: "Close", primary: true }] });
   }
 
+  function renderCrew(c) {
+    const morale = Math.round(c.morale);
+    const tail = c.next
+      ? "Skill " + c.skill + "/" + c.max + " · " + U.fmt(Math.floor(c.xp)) + " / " + U.fmt(c.next) + " crew timber to level " + (c.skill + 1)
+      : "Skill " + c.skill + "/" + c.max + " · maxed";
+    setText(
+      el("crew-status-text"),
+      "Morale " + morale + "% · Crew output ×" + c.crewMult.toFixed(2) + " · " + tail
+    );
+    const meter = el("crew-morale-meter");
+    meter.setAttribute("aria-valuenow", String(morale));
+    meter.classList.toggle("low", c.morale < 40);
+    el("crew-morale-fill").style.width = U.clamp(c.morale, 0, 100).toFixed(1) + "%";
+  }
+
   function renderFleet(s, st) {
     const items = D.machines.map((m) => {
       if (!s.runUnlocked[m.id]) {
@@ -705,6 +720,7 @@ LJ.UI = (function () {
         break;
       case "fleet":
         renderBulk(s);
+        renderCrew(st.crew);
         renderFleet(s, st);
         break;
       case "upgrades":

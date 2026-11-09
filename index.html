@@ -146,6 +146,10 @@
             </section>
 
             <section class="panel-tab" id="panel-fleet" role="tabpanel" hidden>
+              <div class="crew-status" id="crew-status" aria-live="polite">
+                <div class="crew-status-text" id="crew-status-text"></div>
+                <div class="track crew-track" role="meter" aria-label="Crew morale" aria-valuemin="0" aria-valuemax="100" id="crew-morale-meter"><div class="track-fill" id="crew-morale-fill"></div></div>
+              </div>
               <div class="bulk-row">
                 <span class="bulk-label">Hire amount</span>
                 <div class="bulk-bar" id="bulk-bar">
