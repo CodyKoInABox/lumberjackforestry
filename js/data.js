@@ -171,7 +171,8 @@ LJ.DATA = {
     { id: "sus1", branch: "sustainability", name: "Replanting Program", cost: 30, req: null, desc: "+25% seedlings from Replant." },
     { id: "sus2", branch: "sustainability", name: "Soil Health", cost: 150, req: "sus1", desc: "+10% all timber income." },
     { id: "sus3", branch: "sustainability", name: "Biomass Boilers", cost: 800, req: "sus2", desc: "Burns slash for power: +20% machine output." },
-    { id: "sus4", branch: "sustainability", name: "Carbon Credits", cost: 5000, req: "sus3", desc: "Seedling bonuses are 50% stronger." }
+    { id: "sus4", branch: "sustainability", name: "Carbon Credits", cost: 5000, req: "sus3", desc: "Seedling bonuses are 50% stronger." },
+    { id: "sus5", branch: "sustainability", name: "Fire Lookout", cost: 400, req: "sus2", desc: "Forest fires cut machine output to 75% instead of 50%." }
   ],
 
   research_branches: [
@@ -188,6 +189,7 @@ LJ.DATA = {
     { id: "lucky", name: "Lucky Crew", icon: "🍀", desc: "+25% crit chance for 45s.", duration: 45, weight: 3 },
     { id: "beetle", name: "Bark Beetle Outbreak", icon: "🪲", desc: "Machines run at 75% for 60s.", duration: 60, weight: 2 },
     { id: "sunny", name: "Perfect Weather", icon: "☀️", desc: "Machines +20% for 90s.", duration: 90, weight: 2 },
+    { id: "fire", name: "Forest Fire", icon: "🔥", desc: "Fire crews hold the blaze: machines at 50% for 90s.", duration: 90, weight: 1 },
     { id: "windfall", name: "Auction Windfall", icon: "💰", desc: "Instant cash worth about a minute of output.", instant: true, weight: 1 }
   ],
 
