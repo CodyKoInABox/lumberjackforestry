@@ -75,6 +75,19 @@ LJ.DATA = {
     { id: "mill-export", name: "Export Terminal", icon: "🚢", cost: 4000000, price: 0.6, blurb: "Ships to every continent. +60% sale price." }
   ],
 
+  seasonLength: 300,
+  seasons: [
+    { id: "spring", name: "Spring", icon: "🌱", output: 1, price: 1, blurb: "Mild weather. Machines run at normal speed." },
+    { id: "summer", name: "Summer", icon: "☀️", output: 1.15, price: 1, blurb: "Long days. Machines run 15% faster." },
+    { id: "autumn", name: "Autumn", icon: "🍂", output: 1, price: 1.05, blurb: "Harvest demand. Sale prices up 5%." },
+    { id: "winter", name: "Winter", icon: "❄️", output: 0.95, price: 0.95, blurb: "Cold slows machines by 5% and sale prices dip 5%." }
+  ],
+  weather: [
+    { id: "clear", name: "Clear", icon: "🌤️", output: 1 },
+    { id: "rain", name: "Rain", icon: "🌧️", output: 0.95 },
+    { id: "snow", name: "Snow", icon: "🌨️", output: 0.9 }
+  ],
+
   zones: [
     {
       id: "sapling", name: "Sapling Hill", unlock: 0, hp: 12, research: 0.05, tree: "sapling", size: 0.62,

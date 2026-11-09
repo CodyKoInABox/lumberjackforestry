@@ -212,6 +212,7 @@ LJ.UI = (function () {
         : next ? "Next terrain: " + next.name + " at " + U.fmt(next.unlock) + " run timber" : "Final terrain unlocked"
     );
     el("loc-btn").hidden = E.unlockedLocations(s).length === 0;
+    setText(el("season-chip"), st.season.icon + " " + st.season.name + " · " + st.weather.icon + " " + st.weather.name);
     const pct = U.clamp((s.tree.hp / s.tree.max) * 100, 0, 100);
     el("tree-bar-fill").style.width = pct.toFixed(1) + "%";
     setText(el("tree-bar-label"), "Tree " + U.fmt(Math.max(0, Math.ceil(s.tree.hp))) + " / " + U.fmt(s.tree.max));

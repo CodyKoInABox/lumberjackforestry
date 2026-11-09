@@ -59,6 +59,12 @@
           UI.toast({ icon: l.icon, title: "New location: " + l.name, text: l.blurb + " Pick it under Locations.", tone: "gold" });
           break;
         }
+        case "season": {
+          const se = D.seasons.find((x) => x.id === ev.id);
+          A.zone();
+          UI.toast({ icon: se.icon, title: "New season: " + se.name, text: se.blurb, tone: "gold" });
+          break;
+        }
         case "replant":
           Scene.setArea(E.currentArea(game.s));
           break;

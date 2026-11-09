@@ -7,6 +7,7 @@ LJ.Engine = (function () {
   const SAVE_VERSION = 1;
   const OFFLINE_CAP = 8 * 3600;
   const OFFLINE_MIN = 60;
+  const WEATHER_LENGTH = 90;
   const REPLANT_BASE = 1e7;
   const REPLANT_GROWTH = 2.2;
   const OVERHAUL_MAX = 3;
@@ -113,7 +114,9 @@ LJ.Engine = (function () {
         autoSellMin: 0,
         autoProd: false,
         location: null,
-        locSeen: {}
+        locSeen: {},
+        season: 0,
+        weather: { id: "clear", left: WEATHER_LENGTH }
       },
       runDefaults()
     );
@@ -176,6 +179,12 @@ LJ.Engine = (function () {
     s.autoProd = !!raw.autoProd;
     s.location = LOC_BY_ID[raw.location] ? raw.location : null;
     s.locSeen = sanitizeFlags(raw.locSeen, locIds);
+    const wx = raw.weather || {};
+    s.weather = {
+      id: D.weather.some((w) => w.id === wx.id) ? wx.id : "clear",
+      left: U.clamp(Number(wx.left) || 0, 0, WEATHER_LENGTH)
+    };
+    s.season = seasonIndex(s);
     s.tool = U.clamp(Math.floor(Number(raw.tool) || 0), 0, D.tools.length - 1);
     s.zone = U.clamp(Math.floor(Number(raw.zone) || 0), 0, D.zones.length - 1);
     s.events = Array.isArray(raw.events)
@@ -220,6 +229,28 @@ LJ.Engine = (function () {
     return 1 + 0.6 * Math.log10(1 + s.seedlings) * (s.nodes.sus4 ? 1.5 : 1);
   }
 
+  function seasonIndex(s) {
+    return Math.floor(s.playtime / D.seasonLength) % D.seasons.length;
+  }
+
+  function syncSeason(s) {
+    const idx = seasonIndex(s);
+    if (idx === s.season) return;
+    s.season = idx;
+    emit("season", { id: D.seasons[idx].id });
+  }
+
+  function updateWeather(s, dt) {
+    s.weather.left -= dt;
+    if (s.weather.left > 0) return;
+    const winter = D.seasons[s.season].id === "winter";
+    const roll = Math.random();
+    let id = "clear";
+    if (winter) id = roll < 0.4 ? "snow" : roll < 0.6 ? "rain" : "clear";
+    else if (roll < 0.25) id = "rain";
+    s.weather = { id, left: WEATHER_LENGTH };
+  }
+
   function stats(s) {
     const n = s.nodes;
     const ev = {};
@@ -229,11 +260,13 @@ LJ.Engine = (function () {
     const seedMult = seedMultiplier(s);
     const gm = seedMult * (n.sus2 ? 1.1 : 1) * (1 + 0.01 * ach);
     const hydro = (n.hyd1 ? 0.15 : 0) + (n.hyd2 ? 0.25 : 0) + (n.hyd3 ? 0.6 : 0) + (n.hyd4 ? 1 : 0);
+    const season = D.seasons[s.season] || D.seasons[0];
+    const wx = D.weather.find((w) => w.id === s.weather.id) || D.weather[0];
     const machineMult =
-      (1 + hydro) * (n.sus3 ? 1.2 : 1) * gm * (ev.beetle ? 0.75 : 1) * (ev.sunny ? 1.2 : 1);
+      (1 + hydro) * (n.sus3 ? 1.2 : 1) * gm * (ev.beetle ? 0.75 : 1) * (ev.sunny ? 1.2 : 1) * season.output * wx.output;
     const millBonus = D.sawmill.reduce((acc, m) => acc + (s.mill[m.id] ? m.price : 0), 0);
     const price =
-      s.market.price * (1 + (n.mkt1 ? 0.15 : 0) + (n.mkt3 ? 0.4 : 0) + millBonus) * (ev.boom ? 1.6 : 1);
+      s.market.price * (1 + (n.mkt1 ? 0.15 : 0) + (n.mkt3 ? 0.4 : 0) + millBonus) * (ev.boom ? 1.6 : 1) * season.price;
     const rates = {};
     let total = 0;
     for (const m of D.machines) {
@@ -268,7 +301,9 @@ LJ.Engine = (function () {
       autoHits,
       events: ev,
       ach,
-      millBonus
+      millBonus,
+      season,
+      weather: wx
     };
   }
 
@@ -644,6 +679,7 @@ LJ.Engine = (function () {
     if (!(dt > 0)) return;
     const st = stats(s);
     s.playtime += dt;
+    syncSeason(s);
     addTimber(s, st.total * dt);
     if (st.autoHits) {
       s.autoAcc += st.autoHits * dt;
@@ -660,6 +696,7 @@ LJ.Engine = (function () {
       updateMarket(s);
     }
     updateEvents(s, dt, st);
+    updateWeather(s, dt);
     updateContracts(s, dt, st);
     LJ.Production.advance(s, dt, st.price);
     if (autoOn(s, "buy")) {
@@ -681,6 +718,7 @@ LJ.Engine = (function () {
     const eff = s.nodes.crw3 ? 0.75 : 0.5;
     const produced = st.total * secs * eff;
     s.playtime += secs;
+    syncSeason(s);
     let cash = 0;
     const selling = autoOn(s, "sell") && sellFloorOpen(s, st);
     let kept = selling ? 0 : produced;
