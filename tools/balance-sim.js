@@ -96,6 +96,7 @@ function simulate(L, profile, seed) {
     for (const m of D.machines) if (s.overhauls[m.id] >= 1) mark("overhaul1:" + m.id);
     for (let k = 1; k <= 5; k++) if (E.crewSkillLevel(s) >= k) mark("crew_skill" + k);
     if (s.morale < 50) mark("morale_below_50");
+    for (const k of [1, 4, 8]) if (s.trucks >= k) mark("truck" + k);
     if (full()) mark("full");
   }
 
@@ -192,6 +193,7 @@ function simulate(L, profile, seed) {
       else if (a.kind === "overhaul") E.overhaul(s, a.id);
       else E.buyMill(s, a.id);
     }
+    while (E.hireTruck(s));
   }
 
   const payouts = [];
@@ -319,6 +321,7 @@ function main() {
     "overhaul1:processor",
     "crew_skill1", "crew_skill2", "crew_skill3", "crew_skill4", "crew_skill5",
     "morale_below_50",
+    "truck1", "truck4", "truck8",
     "tree_done",
     "full"
   ];

@@ -21,6 +21,11 @@ LJ.Engine = (function () {
   const MORALE_FLOOR_MULT = 0.8;
   const SKILL_XP = [1e4, 1e5, 1e6, 1e7, 1e8];
   const SKILL_STEP = 0.04;
+  const TRUCK_UNLOCK = 1e5;
+  const TRUCK_COST = 5e4;
+  const TRUCK_GROWTH = 2.5;
+  const TRUCK_MAX = 8;
+  const TRUCK_STEP = 0.04;
   const bus = [];
   let savesLocked = false;
 
@@ -93,6 +98,7 @@ LJ.Engine = (function () {
       contract: null,
       contractCooldown: 20,
       morale: 100,
+      trucks: 0,
       prod: LJ.Production.createRun()
     };
   }
@@ -206,6 +212,7 @@ LJ.Engine = (function () {
     }
     s.crewXp = Number.isFinite(raw.crewXp) && raw.crewXp > 0 ? raw.crewXp : 0;
     s.morale = Number.isFinite(raw.morale) ? U.clamp(raw.morale, 0, 100) : 100;
+    s.trucks = Number.isFinite(raw.trucks) ? U.clamp(Math.floor(raw.trucks), 0, TRUCK_MAX) : 0;
     s.tool = U.clamp(Math.floor(Number(raw.tool) || 0), 0, D.tools.length - 1);
     s.zone = U.clamp(Math.floor(Number(raw.zone) || 0), 0, D.zones.length - 1);
     s.events = Array.isArray(raw.events)
@@ -301,6 +308,31 @@ LJ.Engine = (function () {
     };
   }
 
+  function truckCost(s) {
+    return TRUCK_COST * Math.pow(TRUCK_GROWTH, s.trucks);
+  }
+
+  function truckStats(s) {
+    return {
+      count: s.trucks,
+      max: TRUCK_MAX,
+      step: TRUCK_STEP,
+      unlock: TRUCK_UNLOCK,
+      cost: truckCost(s),
+      mult: 1 + TRUCK_STEP * s.trucks
+    };
+  }
+
+  function hireTruck(s) {
+    if (s.trucks >= TRUCK_MAX || s.runTimber < TRUCK_UNLOCK) return false;
+    const cost = truckCost(s);
+    if (s.cash < cost) return false;
+    s.cash -= cost;
+    s.trucks++;
+    emit("truck", { count: s.trucks, mult: 1 + TRUCK_STEP * s.trucks });
+    return true;
+  }
+
   function stats(s) {
     const n = s.nodes;
     const ev = {};
@@ -316,8 +348,9 @@ LJ.Engine = (function () {
       (1 + hydro) * (n.sus3 ? 1.2 : 1) * gm * (ev.beetle ? 0.75 : 1) * (ev.sunny ? 1.2 : 1) * season.output * wx.output * (ev.fire ? (n.sus5 ? 0.75 : 0.5) : 1) * (1 + biodiversity(s, s.zone) / 200);
     const crew = crewStats(s);
     const millBonus = D.sawmill.reduce((acc, m) => acc + (s.mill[m.id] ? m.price : 0), 0);
+    const truck = truckStats(s);
     const price =
-      s.market.price * (1 + (n.mkt1 ? 0.15 : 0) + (n.mkt3 ? 0.4 : 0) + millBonus) * (ev.boom ? 1.6 : 1) * season.price * (1 + certification(s) / 1000);
+      s.market.price * (1 + (n.mkt1 ? 0.15 : 0) + (n.mkt3 ? 0.4 : 0) + millBonus) * (ev.boom ? 1.6 : 1) * season.price * (1 + certification(s) / 1000) * truck.mult;
     const rates = {};
     let total = 0;
     for (const m of D.machines) {
@@ -355,7 +388,8 @@ LJ.Engine = (function () {
       millBonus,
       season,
       weather: wx,
-      crew
+      crew,
+      truck
     };
   }
 
@@ -870,6 +904,8 @@ LJ.Engine = (function () {
     normalize,
     stats,
     crewSkillLevel,
+    truckCost,
+    hireTruck,
     seedMultiplier,
     certification,
     certTier,
