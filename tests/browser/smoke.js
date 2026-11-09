@@ -1151,6 +1151,76 @@ async function scenarioTablet(browser) {
   await context.close();
 }
 
+async function scenarioMachineInfo(browser) {
+  const seed = seedBase({ cash: 100000, runUnlocked: { crew: true, skidder: true, feller: true }, tutorial: 99 });
+  let { context, page } = await newPage(browser, { seed, viewport: { width: 1280, height: 900 }, label: "machine-info" });
+  await sleep(300);
+  await page.click("#tab-fleet");
+
+  await page.click('#list-fleet .card[data-key="m-skidder"] .card-name');
+  const opened = await page.waitForSelector("#modal-root .machine-info", { timeout: 3000 }).then(() => true, () => false);
+  check("clicking a machine card name opens its info modal", opened);
+  const title = await text(page, "#modal-root .modal-title");
+  check("info modal names the machine", title === "HSM 805 Articulated Skidder", title);
+  const specs = await page.$eval("#modal-root .machine-specs", (d) => d.textContent);
+  check("info modal shows sourced weight and engine power", specs.includes("12,600 kg") && specs.includes("129 kW"), specs.slice(0, 160));
+  const credit = await page.$eval("#modal-root .machine-credit", (p) => p.textContent);
+  check("info modal credits the photo author and licence", credit.includes("Gabinho") && credit.includes("CC BY-SA 3.0"), credit);
+  const img = await page.$eval("#modal-root .machine-photo-img", (i) => ({ src: i.getAttribute("src"), ok: i.complete && i.naturalWidth > 0 }));
+  check("info modal photo loads from a relative path", img.ok && !/^(\/|https?:)/.test(img.src), JSON.stringify(img));
+  await sleep(400);
+  await ensureScreenshot(page, "machine-info-modal-desktop.png");
+  await page.click("#modal-root .modal-foot .btn");
+  check("info modal closes from its button", await page.$eval("#modal-root", (r) => r.hidden));
+
+  await page.click('#list-fleet .card[data-key="m-skidder"] .card-btn');
+  const bought = await waitSave(page, (sv) => (sv.machines.skidder || 0) >= 1, 4000);
+  check("the hire button still buys without opening the info modal", !!bought && bought.machines.skidder >= 1 && (await page.$eval("#modal-root", (r) => r.hidden)));
+
+  await page.click('#list-fleet .card[data-key="m-titan"] .card-name');
+  await page.waitForSelector("#modal-root .machine-info", { timeout: 3000 }).catch(() => {});
+  const lockedTitle = await text(page, "#modal-root .modal-title").catch(() => "");
+  const fictionalNote = await page.$eval("#modal-root .machine-info", (w) => w.textContent.includes("Fictional machine")).catch(() => false);
+  check("locked machines also open their info, and fictional ones say so", lockedTitle === "Vorrex Titan Fleet Unit" && fictionalNote, lockedTitle);
+  await page.keyboard.press("Escape");
+  check("Escape closes the info modal", await page.$eval("#modal-root", (r) => r.hidden));
+
+  await page.focus('#list-fleet .card[data-key="m-feller"]');
+  await page.keyboard.press("Enter");
+  await page.waitForSelector("#modal-root .machine-info", { timeout: 3000 }).catch(() => {});
+  const kbTitle = await text(page, "#modal-root .modal-title").catch(() => "");
+  check("Enter on a focused machine card opens its info", kbTitle === "John Deere 843L-II Feller-Buncher", kbTitle);
+  await page.keyboard.press("Escape");
+  await context.close();
+
+  const phone = await newPage(browser, { seed, viewport: { width: 360, height: 740 }, touch: true, label: "machine-info-360" });
+  context = phone.context;
+  page = phone.page;
+  await sleep(300);
+  await page.tap("#tab-fleet");
+  await page.tap('#list-fleet .card[data-key="m-skidder"] .card-name');
+  await page.waitForSelector("#modal-root .machine-info", { timeout: 3000 }).catch(() => {});
+  const fit = await page.evaluate(() => {
+    const m = document.querySelector("#modal-root .modal");
+    const r = m ? m.getBoundingClientRect() : null;
+    return {
+      open: !!r,
+      inside: !!r && r.left >= 0 && r.right <= window.innerWidth + 0.5,
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      closeH: (() => {
+        const b = document.querySelector("#modal-root .modal-foot .btn");
+        return b ? b.offsetHeight : 0;
+      })()
+    };
+  });
+  check("info modal opens by tap on a 360px phone", fit.open);
+  check("info modal fits the 360px width without horizontal overflow", fit.inside && fit.overflow <= 1, JSON.stringify(fit));
+  check("info modal close button is at least 44px tall", fit.closeH >= 44, "height=" + fit.closeH);
+  await sleep(400);
+  await ensureScreenshot(page, "machine-info-modal-360.png");
+  await context.close();
+}
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: CHROME || undefined,
@@ -1174,7 +1244,8 @@ async function scenarioTablet(browser) {
     ["production-mobile", scenarioProductionMobile],
     ["sell-floor", scenarioSellFloor],
     ["auto-production", scenarioAutoProduction],
-    ["tablet", scenarioTablet]
+    ["tablet", scenarioTablet],
+    ["machine-info", scenarioMachineInfo]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
   for (const [name, fn] of suites) {

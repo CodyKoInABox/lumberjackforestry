@@ -97,13 +97,27 @@ LJ.UI = (function () {
       const it = card._item;
       if (it && it.onClick) it.onClick();
     });
+    card.addEventListener("click", (e) => {
+      const it = card._item;
+      if (!it || !it.onInfo || e.target.closest(".card-btn")) return;
+      it.onInfo();
+    });
+    card.addEventListener("keydown", (e) => {
+      const it = card._item;
+      if (!it || !it.onInfo || e.key !== "Enter" || e.target !== card) return;
+      e.preventDefault();
+      it.onInfo();
+    });
     return card;
   }
 
   function updateCard(card, it) {
     card._item = it;
     const p = card._parts;
-    card.className = "card" + (it.state ? " " + it.state : "") + (it.header ? " is-header" : "");
+    card.className =
+      "card" + (it.state ? " " + it.state : "") + (it.header ? " is-header" : "") + (it.onInfo ? " has-info" : "");
+    if (it.onInfo) card.tabIndex = 0;
+    else card.removeAttribute("tabindex");
     if (it.header) {
       setText(p.name, it.name);
       p.icon.hidden = true;
@@ -298,6 +312,64 @@ LJ.UI = (function () {
     reconcile(el("list-tools"), items);
   }
 
+  function link(label, url) {
+    const a = create("a", "", label);
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    return a;
+  }
+
+  function creditLine(c) {
+    const p = create("p", "machine-credit");
+    p.append((c.url ? "Photo: " : "Illustration: ") + c.author + ", ");
+    p.append(c.licenceUrl ? link(c.licence, c.licenceUrl) : c.licence);
+    if (c.url) {
+      p.append(" · ");
+      p.append(link("Wikimedia Commons", c.url));
+    }
+    return p;
+  }
+
+  function sourcesLine(list) {
+    const p = create("p", "machine-sources", "Sources: ");
+    list.forEach((s, i) => {
+      if (i) p.append(", ");
+      p.append(link(s.label, s.url));
+    });
+    return p;
+  }
+
+  function openMachineInfo(m) {
+    const info = (LJ.MachineInfo && LJ.MachineInfo[m.id]) || {};
+    const wrap = create("div", "machine-info");
+    const figure = create("figure", "machine-photo");
+    const img = create("img", "machine-photo-img");
+    img.src = m.photo;
+    img.alt = m.name;
+    img.width = 240;
+    img.height = 180;
+    figure.appendChild(img);
+    if (info.credit) figure.appendChild(creditLine(info.credit));
+    wrap.appendChild(figure);
+    const rows = [
+      ["Maker", info.maker],
+      ["Model", info.model],
+      ["Type", info.type],
+      ["Typical use", info.use],
+      ["Weight", info.weight],
+      ["Engine power", info.power],
+      ["Width or capacity", info.size]
+    ];
+    const dl = create("dl", "machine-specs");
+    for (const [k, v] of rows) if (v) dl.append(create("dt", "", k), create("dd", "", v));
+    if (dl.children.length) wrap.appendChild(dl);
+    if (info.identified) wrap.appendChild(create("p", "machine-note", "The photo's file page names this model."));
+    if (info.note) wrap.appendChild(create("p", "machine-note", info.note));
+    if (info.sources && info.sources.length) wrap.appendChild(sourcesLine(info.sources));
+    openModal({ title: m.name, body: wrap, actions: [{ label: "Close", primary: true }] });
+  }
+
   function renderFleet(s, st) {
     const items = D.machines.map((m) => {
       if (!s.runUnlocked[m.id]) {
@@ -309,7 +381,8 @@ LJ.UI = (function () {
           desc: "Reach " + U.fmt(m.unlock) + " run timber to unlock.",
           state: "locked",
           btn: "Locked",
-          disabled: true
+          disabled: true,
+          onInfo: () => openMachineInfo(m)
         };
       }
       const owned = s.machines[m.id] || 0;
@@ -335,7 +408,8 @@ LJ.UI = (function () {
           ? () => {
               if (E.hire(s, m.id, want === "max" ? "max" : want)) refresh();
             }
-          : null
+          : null,
+        onInfo: () => openMachineInfo(m)
       };
     });
     reconcile(el("list-fleet"), items);

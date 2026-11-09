@@ -380,6 +380,73 @@ textarea {
   filter: grayscale(1);
 }
 
+.card.has-info {
+  cursor: pointer;
+}
+
+.card.has-info .card-name::after {
+  content: " ⓘ";
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.card.has-info:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.machine-info {
+  display: grid;
+  gap: 12px;
+}
+
+.machine-photo {
+  margin: 0;
+  text-align: center;
+}
+
+.machine-photo-img {
+  display: block;
+  width: 240px;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  border-radius: 12px;
+}
+
+.machine-info .machine-credit,
+.machine-info .machine-sources,
+.machine-info .machine-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.machine-specs {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.machine-specs dt {
+  color: var(--ink-soft);
+}
+
+.machine-specs dd {
+  margin: 0;
+}
+
+.machine-info a {
+  color: var(--amber);
+}
+
+.modal-foot .btn {
+  min-height: 44px;
+}
+
 .stage-foot {
   padding: 14px 16px;
   display: flex;
