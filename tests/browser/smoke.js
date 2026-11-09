@@ -1367,6 +1367,115 @@ async function scenarioLocations(browser) {
   }
 }
 
+async function scenarioFullscreen(browser) {
+  const { context, page } = await newPage(browser, { seed: seedBase({}), label: "fullscreen" });
+  await sleep(300);
+  check("fullscreen button starts as Enter fullscreen", (await page.getAttribute("#btn-fullscreen", "aria-label")) === "Enter fullscreen");
+  const supported = await page.evaluate(() => LJ.Fullscreen.supported());
+  check("fullscreen is supported in desktop Chromium", supported === true);
+
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  await page.keyboard.press("KeyF");
+  const entered = await waitUntil(() => page.evaluate(() => document.fullscreenElement && document.fullscreenElement.classList.contains("app")));
+  check("F key enters fullscreen on the game container", entered);
+  if (entered) {
+    const pressed = await waitUntil(async () => (await page.getAttribute("#btn-fullscreen", "aria-pressed")) === "true");
+    check("button reports fullscreen while active", pressed);
+    await page.keyboard.press("KeyF");
+    const left = await waitUntil(() => page.evaluate(() => !document.fullscreenElement));
+    check("F key leaves fullscreen", left);
+  }
+
+  await page.click("#btn-fullscreen");
+  const viaButton = await waitUntil(() => page.evaluate(() => !!document.fullscreenElement));
+  check("the fullscreen button enters fullscreen", viaButton);
+  if (viaButton) {
+    await page.click("#btn-fullscreen");
+    const out = await waitUntil(() => page.evaluate(() => !document.fullscreenElement));
+    check("the fullscreen button leaves fullscreen", out);
+  }
+
+  await sleep(4200);
+  const save = await readSave(page);
+  check("fullscreen state is not saved", !!save && !("fullscreen" in save) && !JSON.stringify(save).includes("fullscreen"));
+  await context.close();
+
+  const fb = await newPage(browser, { seed: seedBase({}), label: "fullscreen-fallback" });
+  await sleep(300);
+  await fb.page.evaluate(() => {
+    Object.defineProperty(document, "fullscreenEnabled", { value: false, configurable: true });
+    Object.defineProperty(document, "webkitFullscreenEnabled", { value: false, configurable: true });
+  });
+  await fb.page.click("#btn-fullscreen");
+  check("unsupported browsers get a fallback message", await waitToast(fb.page, "Fullscreen unavailable"));
+  const fallbackText = await fb.page.$$eval(".toast-text", (n) => n.map((x) => x.textContent).join(" "));
+  check("the fallback explains the iPhone Home Screen option", fallbackText.includes("Home Screen"), fallbackText.slice(0, 120));
+  check("fullscreen stays off in the fallback", !(await fb.page.evaluate(() => !!document.fullscreenElement)));
+  await fb.context.close();
+
+  for (const vp of [
+    { name: "360", width: 360, height: 740 },
+    { name: "landscape-844", width: 844, height: 390 }
+  ]) {
+    const m = await newPage(browser, { seed: seedBase({ cash: 25000, timber: 300, runTimber: 60000, lifetimeTimber: 60000, tool: 2, zone: 1 }), viewport: { width: vp.width, height: vp.height }, touch: true, label: "fs-" + vp.name });
+    await sleep(300);
+    const r = await m.page.evaluate(() => {
+      const b = document.getElementById("btn-fullscreen");
+      const rect = b.getBoundingClientRect();
+      const top = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return { h: b.offsetHeight, w: b.offsetWidth, reachable: top === b };
+    });
+    check(vp.name + ": fullscreen button is 44px and reachable", r.h >= 44 && r.w >= 44 && r.reachable, JSON.stringify(r));
+    await m.page.tap("#btn-fullscreen");
+    const full = await waitUntil(() => m.page.evaluate(() => !!document.fullscreenElement));
+    if (full) {
+      await sleep(400);
+      const layout = await m.page.evaluate(() => {
+        const app = document.querySelector(".app");
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const r = app.getBoundingClientRect();
+        const controls = ["#btn-fullscreen", "#btn-help", "#btn-sound", "#sell-btn"].map((sel) => {
+          const n = document.querySelector(sel);
+          n.scrollIntoView({ block: "center" });
+          const b = n.getBoundingClientRect();
+          const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+          return { sel, reachable: !!hit && (hit === n || n.contains(hit)) };
+        });
+        return { fills: Math.round(r.width) >= vw - 1 && Math.round(r.height) >= vh - 1, overflowX: app.scrollWidth - app.clientWidth, controls };
+      });
+      check(vp.name + ": fullscreen fills the viewport with no horizontal overflow", layout.fills && layout.overflowX <= 1, JSON.stringify({ fills: layout.fills, overflowX: layout.overflowX }));
+      check(vp.name + ": fullscreen controls are reachable", layout.controls.every((c) => c.reachable), JSON.stringify(layout.controls));
+      await m.page.evaluate(() => {
+        document.querySelector(".app").scrollTop = 0;
+      });
+      await sleep(300);
+      await ensureScreenshot(m.page, "fullscreen-" + vp.name + ".png");
+      await m.page.tap("#btn-fullscreen");
+      await waitUntil(() => m.page.evaluate(() => !document.fullscreenElement));
+    } else {
+      check(vp.name + ": fullscreen could be entered on a phone-sized viewport", false, "browser refused fullscreen");
+    }
+    await m.context.close();
+  }
+}
+
+async function waitUntil(pred, timeout = 3000) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    if (await pred()) return true;
+    await sleep(100);
+  }
+  return false;
+}
+
+async function openLocationPicker(page, touch = false) {
+  if (touch) await page.tap("#loc-btn");
+  else await page.click("#loc-btn");
+  await page.waitForSelector(".loc-opt");
+  await sleep(450);
+}
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: CHROME || undefined,
@@ -1393,7 +1502,8 @@ async function scenarioLocations(browser) {
     ["tablet", scenarioTablet],
     ["machine-info", scenarioMachineInfo],
     ["late-contracts", scenarioLateContracts],
-    ["locations", scenarioLocations]
+    ["locations", scenarioLocations],
+    ["fullscreen", scenarioFullscreen]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
   for (const [name, fn] of suites) {

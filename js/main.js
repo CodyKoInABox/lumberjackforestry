@@ -112,6 +112,9 @@
   Scene.init(canvas);
   Scene.setArea(E.currentArea(game.s));
   UI.init(game);
+  LJ.Fullscreen.init({
+    notify: (text) => UI.toast({ icon: "🖥️", title: "Fullscreen unavailable", text, tone: "warn" })
+  });
 
   canvas.addEventListener("pointerdown", (e) => {
     e.preventDefault();
