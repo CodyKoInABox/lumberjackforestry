@@ -903,7 +903,7 @@ async function scenarioProduction(browser) {
   const built = await waitSave(page, (sv) => sv.prod && sv.prod.lines.length === 1, 9000);
   check(
     "building a line from picked stages charges the stage costs",
-    !!built && built.prod.lines[0].stages.join(",") === "saw,plane" && built.cash === 2000000 - 170000,
+    !!built && built.prod.lines[0].stages.join(",") === "saw,plane" && built.cash === 2000000 - 55000,
     "stages=" + (built && built.prod.lines[0].stages.join(",")) + " cash=" + (built && built.cash)
   );
   await page.click(".prod-line .flow-add");
@@ -1052,6 +1052,55 @@ async function scenarioAutoProduction(browser) {
   await context.close();
 }
 
+async function scenarioProductionValue(browser) {
+  const viewport = { width: 1280, height: 900 };
+  const fullChain = (stations) => ({
+    id: 1,
+    stages: ["saw", "plane", "dry", "pack"],
+    stations: [stations, stations, stations, stations],
+    done: 0,
+    earned: 0
+  });
+
+  let { context, page } = await newPage(browser, {
+    seed: seedBase({
+      replants: 1,
+      cash: 0,
+      tutorial: 99,
+      market: { price: 1, hist: [1] },
+      prod: { queue: 300, warehouses: 0, factories: 0, nextLine: 2, lines: [fullChain(12)] }
+    }),
+    viewport,
+    label: "value-prod"
+  });
+  const processed = await waitSave(page, (sv) => sv.prod && sv.prod.queue === 0 && sv.prod.processed >= 299, 30000);
+  const prodCash = processed ? processed.cash : 0;
+  check("a full-chain line processes the queued logs", !!processed, "queue=" + (processed && processed.prod.queue) + " processed=" + (processed && processed.prod.processed));
+  await context.close();
+
+  ({ context, page } = await newPage(browser, {
+    seed: seedBase({
+      replants: 1,
+      cash: 0,
+      timber: 300,
+      tutorial: 99,
+      nodes: { mkt2: true },
+      auto: { sell: true },
+      market: { price: 1, hist: [1] }
+    }),
+    viewport,
+    label: "value-raw"
+  }));
+  const raw = await waitSave(page, (sv) => sv.timber < 1 && sv.cash > 0, 9000);
+  const rawCash = raw ? raw.cash : 0;
+  check(
+    "the same 300 logs earn a clear multiple more through production than raw sales",
+    prodCash > 0 && rawCash > 0 && prodCash >= 2.5 * rawCash,
+    "production=" + prodCash.toFixed(1) + " raw=" + rawCash.toFixed(1) + " ratio=" + (rawCash ? (prodCash / rawCash).toFixed(2) : "n/a")
+  );
+  await context.close();
+}
+
 async function scenarioProductionMobile(browser) {
   for (const vp of MOBILE_VIEWPORTS) {
     const { context, page } = await newPage(browser, { seed: productionSeed(), viewport: { width: vp.width, height: vp.height }, label: "prod-" + vp.name });
@@ -1121,6 +1170,7 @@ async function scenarioTablet(browser) {
     ["visuals", scenarioVisuals],
     ["features", scenarioFeatures],
     ["production", scenarioProduction],
+    ["production-value", scenarioProductionValue],
     ["production-mobile", scenarioProductionMobile],
     ["sell-floor", scenarioSellFloor],
     ["auto-production", scenarioAutoProduction],
