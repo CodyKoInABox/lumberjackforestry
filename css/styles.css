@@ -250,6 +250,68 @@ textarea {
   color: var(--ink-soft);
 }
 
+.zone-loc {
+  pointer-events: auto;
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.loc-list {
+  display: grid;
+  gap: 8px;
+}
+
+.loc-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  text-align: left;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.loc-opt:hover,
+.loc-opt:focus-visible {
+  border-color: var(--mint);
+  outline: none;
+}
+
+.loc-opt.current {
+  border-color: var(--amber);
+  background: rgba(245, 184, 75, 0.1);
+}
+
+.loc-icon {
+  font-size: 24px;
+  flex: 0 0 auto;
+}
+
+.loc-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.loc-name {
+  font-weight: 800;
+}
+
+.loc-blurb,
+.loc-stats {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
 .event-chip {
   padding: 8px 12px;
   border-radius: 999px;

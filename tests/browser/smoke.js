@@ -1264,6 +1264,109 @@ function fmtNum(n) {
   return Number(n).toExponential(3);
 }
 
+async function scenarioLocations(browser) {
+  {
+    const { context, page } = await newPage(browser, {
+      seed: seedBase({ zone: 5, runTimber: 3e8, lifetimeTimber: 1e6 }),
+      label: "loc-locked"
+    });
+    await sleep(400);
+    const hidden = await page.$eval("#loc-btn", (b) => b.hidden);
+    check("locations button stays hidden before any location unlocks", hidden === true);
+    await context.close();
+  }
+
+  const { context, page } = await newPage(browser, { seed: locationSeed({}), label: "loc-desktop" });
+  check("unlocking a location shows a toast", await waitToast(page, "New location: Alpine Larch Slope"));
+  const shown = await page.$eval("#loc-btn", (b) => !b.hidden);
+  check("locations button appears once a location unlocks", shown);
+
+  await openLocationPicker(page, false);
+  const names = await page.$$eval(".loc-opt .loc-name", (n) => n.map((x) => x.textContent.trim()));
+  check(
+    "picker lists forest progression and unlocked locations only",
+    names.length === 2 && names[0] === "Forest progression" && names[1] === "Alpine Larch Slope" && !names.some((n) => /Kauri|Cedar/.test(n)),
+    names.join(" | ")
+  );
+  const current = await page.$eval(".loc-opt.current .loc-name", (n) => n.textContent.trim());
+  check("an existing save without a location starts on forest progression", current === "Forest progression", current);
+  await ensureScreenshot(page, "locations-picker.png");
+
+  await page.click(".loc-opt:nth-child(2)");
+  const saved = await waitSave(page, (s) => s.location === "alpine");
+  check("choosing a location saves it", !!saved && saved.location === "alpine");
+  const area = await page.evaluate(() => LJ.Scene.area().id);
+  check("switching location changes the scene terrain", area === "alpine", "scene=" + area);
+  check("the zone card shows the location", (await text(page, "#zone-name")) === "Alpine Larch Slope");
+  check(
+    "switching location starts a tree sized for that location",
+    !!saved && saved.tree.loc === "alpine" && saved.tree.max >= 2e5 && saved.tree.max <= 2.8e5,
+    saved ? JSON.stringify(saved.tree) : "no save"
+  );
+
+  const before = saved;
+  await chop(page, 12);
+  const after = await waitSave(page, (s) => s.trees > before.trees, 8000);
+  const felled = after ? after.trees - before.trees : 0;
+  const gained = after ? after.researchEarned - before.researchEarned : 0;
+  check("trees fall at the chosen location", felled > 0, "felled=" + felled);
+  check("felled trees pay the location's research", felled > 0 && Math.abs(gained - felled * 8) < 0.01, "gained=" + gained + " felled=" + felled);
+
+  await openLocationPicker(page, false);
+  await page.click(".loc-opt:nth-child(1)");
+  const back = await waitSave(page, (s) => s.location === null);
+  check("forest progression option clears the location", !!back && back.location === null);
+  const areaBack = await page.evaluate(() => LJ.Scene.area().id);
+  check("scene returns to the progression terrain", areaBack === "redwood", "scene=" + areaBack);
+
+  await openLocationPicker(page, false);
+  await page.click(".loc-opt:nth-child(2)");
+  await waitSave(page, (s) => s.location === "alpine");
+  await sleep(500);
+  await page.reload({ waitUntil: "load" });
+  await sleep(600);
+  const reloaded = await page.evaluate(() => LJ.Scene.area().id);
+  check("the chosen location survives a reload", reloaded === "alpine", "scene=" + reloaded);
+  await context.close();
+
+  for (const vp of [
+    { name: "360", width: 360, height: 740 },
+    { name: "430", width: 430, height: 932 },
+    { name: "landscape-844", width: 844, height: 390 }
+  ]) {
+    const m = await newPage(browser, { seed: locationSeed({}), viewport: { width: vp.width, height: vp.height }, touch: true, label: "loc-" + vp.name });
+    await sleep(300);
+    const btnOk = await m.page.evaluate(() => {
+      const b = document.getElementById("loc-btn");
+      const r = b.getBoundingClientRect();
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return { h: b.offsetHeight, reachable: top === b || b.contains(top) };
+    });
+    check(vp.name + ": locations button is 44px and reachable", btnOk.h >= 44 && btnOk.reachable, JSON.stringify(btnOk));
+    await openLocationPicker(m.page, true);
+    const layout = await m.page.evaluate(() => {
+      const vw = document.documentElement.clientWidth;
+      const vh = window.innerHeight;
+      const modal = document.querySelector(".modal").getBoundingClientRect();
+      const opts = [...document.querySelectorAll(".loc-opt")].map((b) => b.offsetHeight);
+      const foot = [...document.querySelectorAll(".modal-foot .btn")].map((b) => b.offsetHeight);
+      return {
+        overflow: document.documentElement.scrollWidth - vw,
+        inside: modal.left >= -1 && modal.right <= vw + 1 && modal.top >= -1 && modal.bottom <= vh + 1,
+        minOpt: Math.min(...opts),
+        minFoot: Math.min(...foot)
+      };
+    });
+    check(vp.name + ": picker has no horizontal overflow and fits the viewport", layout.overflow <= 1 && layout.inside, JSON.stringify(layout));
+    check(vp.name + ": picker options and close button are at least 44px", layout.minOpt >= 44 && layout.minFoot >= 44, JSON.stringify(layout));
+    if (vp.name === "360") await ensureScreenshot(m.page, "locations-picker-360.png");
+    await m.page.tap(".loc-opt:nth-child(2)");
+    const tapped = await waitSave(m.page, (s) => s.location === "alpine", 6000);
+    check(vp.name + ": tapping a location in the picker switches it", !!tapped);
+    await m.context.close();
+  }
+}
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: CHROME || undefined,
@@ -1289,7 +1392,8 @@ function fmtNum(n) {
     ["auto-production", scenarioAutoProduction],
     ["tablet", scenarioTablet],
     ["machine-info", scenarioMachineInfo],
-    ["late-contracts", scenarioLateContracts]
+    ["late-contracts", scenarioLateContracts],
+    ["locations", scenarioLocations]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
   for (const [name, fn] of suites) {

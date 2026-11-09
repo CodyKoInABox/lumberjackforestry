@@ -18,6 +18,8 @@ LJ.Engine = (function () {
   [D.tools, D.machines, D.zones, D.research, D.events, D.achievements, D.sawmill].forEach((list) =>
     list.forEach((item) => (byId[item.id] = item))
   );
+  const LOC_BY_ID = {};
+  D.locations.forEach((l) => (LOC_BY_ID[l.id] = l));
 
   function emit(type, data) {
     bus.push(Object.assign({ type }, data));
@@ -35,10 +37,29 @@ LJ.Engine = (function () {
     return idx;
   }
 
+  function activeLocation(s) {
+    const loc = s.location ? LOC_BY_ID[s.location] : null;
+    return loc && s.lifetimeTimber >= loc.unlock ? loc : null;
+  }
+
+  function unlockedLocations(s) {
+    return D.locations.filter((l) => s.lifetimeTimber >= l.unlock);
+  }
+
+  function currentArea(s) {
+    return activeLocation(s) || D.zones[s.zone] || D.zones[0];
+  }
+
+  function treeArea(tree) {
+    return (tree.loc && LOC_BY_ID[tree.loc]) || D.zones[tree.zone];
+  }
+
   function newTree(s) {
     const idx = zoneIndex(s.runTimber);
-    const max = Math.max(1, Math.round(D.zones[idx].hp * U.rand(0.85, 1.15)));
-    return { hp: max, max, zone: idx, seed: Math.random() };
+    const loc = activeLocation(s);
+    const area = loc || D.zones[idx];
+    const max = Math.max(1, Math.round(area.hp * U.rand(0.85, 1.15)));
+    return { hp: max, max, zone: idx, loc: loc ? loc.id : null, seed: Math.random() };
   }
 
   function runDefaults() {
@@ -90,7 +111,9 @@ LJ.Engine = (function () {
         achievements: {},
         auto: { sell: false, fell: false, buy: false },
         autoSellMin: 0,
-        autoProd: false
+        autoProd: false,
+        location: null,
+        locSeen: {}
       },
       runDefaults()
     );
@@ -135,6 +158,8 @@ LJ.Engine = (function () {
     D.sawmill.forEach((m) => (millIds[m.id] = true));
     const eventIds = {};
     D.events.forEach((e) => (eventIds[e.id] = true));
+    const locIds = {};
+    D.locations.forEach((l) => (locIds[l.id] = true));
 
     s.machines = sanitizeCounts(raw.machines, machineIds, 1e9);
     s.overhauls = sanitizeCounts(raw.overhauls, machineIds, OVERHAUL_MAX);
@@ -149,6 +174,8 @@ LJ.Engine = (function () {
     };
     s.autoSellMin = SELL_FLOORS.includes(Number(raw.autoSellMin)) ? Number(raw.autoSellMin) : 0;
     s.autoProd = !!raw.autoProd;
+    s.location = LOC_BY_ID[raw.location] ? raw.location : null;
+    s.locSeen = sanitizeFlags(raw.locSeen, locIds);
     s.tool = U.clamp(Math.floor(Number(raw.tool) || 0), 0, D.tools.length - 1);
     s.zone = U.clamp(Math.floor(Number(raw.zone) || 0), 0, D.zones.length - 1);
     s.events = Array.isArray(raw.events)
@@ -163,7 +190,13 @@ LJ.Engine = (function () {
     s.contract = raw.contract && typeof raw.contract === "object" ? raw.contract : null;
     const t = raw.tree;
     if (t && Number.isFinite(t.hp) && Number.isFinite(t.max) && t.max > 0) {
-      s.tree = { hp: t.hp, max: t.max, zone: U.clamp(t.zone | 0, 0, D.zones.length - 1), seed: Math.random() };
+      s.tree = {
+        hp: t.hp,
+        max: t.max,
+        zone: U.clamp(t.zone | 0, 0, D.zones.length - 1),
+        loc: LOC_BY_ID[t.loc] ? t.loc : null,
+        seed: Math.random()
+      };
     } else {
       s.tree = newTree(s);
     }
@@ -264,12 +297,21 @@ LJ.Engine = (function () {
   }
 
   function fell(s) {
-    const z = D.zones[s.tree.zone];
+    const area = treeArea(s.tree);
     s.trees++;
-    s.research += z.research;
-    s.researchEarned += z.research;
-    emit("fell", { zone: s.tree.zone, research: z.research });
+    s.research += area.research;
+    s.researchEarned += area.research;
+    emit("fell", { area, research: area.research });
     s.tree = newTree(s);
+  }
+
+  function setLocation(s, id) {
+    if (id !== null && !(LOC_BY_ID[id] && s.lifetimeTimber >= LOC_BY_ID[id].unlock)) return false;
+    if (s.location === id) return false;
+    s.location = id;
+    s.tree = newTree(s);
+    emit("location", { id, area: currentArea(s) });
+    return true;
   }
 
   function sell(s, st, auto) {
@@ -462,6 +504,12 @@ LJ.Engine = (function () {
     if (z !== s.zone) {
       s.zone = z;
       emit("zone", { zone: z });
+    }
+    for (const l of D.locations) {
+      if (!s.locSeen[l.id] && s.lifetimeTimber >= l.unlock) {
+        s.locSeen[l.id] = true;
+        emit("locationUnlock", { id: l.id });
+      }
     }
   }
 
@@ -734,6 +782,10 @@ LJ.Engine = (function () {
     canReplant,
     replant,
     zoneIndex,
+    setLocation,
+    activeLocation,
+    unlockedLocations,
+    currentArea,
     offline,
     save,
     load,

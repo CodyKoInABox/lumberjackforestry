@@ -202,12 +202,16 @@ LJ.UI = (function () {
   function renderStage(s, st) {
     const z = D.zones[s.zone];
     const next = D.zones[s.zone + 1];
-    setText(el("zone-name"), z.name);
-    setText(el("zone-sub"), z.blurb);
+    const area = E.currentArea(s);
+    setText(el("zone-name"), area.name);
+    setText(el("zone-sub"), area.blurb);
     setText(
       el("zone-next"),
-      next ? "Next terrain: " + next.name + " at " + U.fmt(next.unlock) + " run timber" : "Final terrain unlocked"
+      E.activeLocation(s)
+        ? "Forest terrain: " + z.name
+        : next ? "Next terrain: " + next.name + " at " + U.fmt(next.unlock) + " run timber" : "Final terrain unlocked"
     );
+    el("loc-btn").hidden = E.unlockedLocations(s).length === 0;
     const pct = U.clamp((s.tree.hp / s.tree.max) * 100, 0, 100);
     el("tree-bar-fill").style.width = pct.toFixed(1) + "%";
     setText(el("tree-bar-label"), "Tree " + U.fmt(Math.max(0, Math.ceil(s.tree.hp))) + " / " + U.fmt(s.tree.max));
@@ -768,6 +772,37 @@ LJ.UI = (function () {
     return { close, box };
   }
 
+  function openLocations() {
+    const s = game.s;
+    const current = E.activeLocation(s);
+    const zone = D.zones[s.zone];
+    const options = [{ id: null, name: "Forest progression", icon: "🧭", blurb: "Follows the terrain your run reaches: " + zone.name + ".", tree: zone }].concat(
+      E.unlockedLocations(s).map((l) => ({ id: l.id, name: l.name, icon: l.icon, blurb: l.blurb, tree: l }))
+    );
+    const list = create("div", "loc-list");
+    const modal = openModal({ title: "Choose a location", body: list, actions: [{ label: "Close", ghost: true }] });
+    for (const o of options) {
+      const active = (current ? current.id : null) === o.id;
+      const b = create("button", "loc-opt" + (active ? " current" : ""));
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(active));
+      b.append(create("span", "loc-icon", o.icon));
+      const text = create("span", "loc-text");
+      text.append(
+        create("span", "loc-name", o.name),
+        create("span", "loc-blurb", o.blurb),
+        create("span", "loc-stats", "Tree " + U.fmt(o.tree.hp) + " · " + U.fmt(o.tree.research) + " research per tree" + (active ? " · current" : ""))
+      );
+      b.append(text);
+      b.addEventListener("click", () => {
+        E.setLocation(s, o.id);
+        refresh();
+        modal.close();
+      });
+      list.appendChild(b);
+    }
+  }
+
   function showAway(away) {
     if (!away || away.seconds < 60) return;
     const lines = [];
@@ -934,6 +969,7 @@ LJ.UI = (function () {
       });
     }
     el("rp-btn").addEventListener("click", openReplant);
+    el("loc-btn").addEventListener("click", openLocations);
     for (const b of el("sell-floor").querySelectorAll("[data-floor]")) {
       b.addEventListener("click", () => {
         if (E.setSellFloor(game.s, Number(b.dataset.floor))) refresh();

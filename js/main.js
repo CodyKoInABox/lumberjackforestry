@@ -15,7 +15,7 @@
           A.chop(ev.crit);
           break;
         case "fell":
-          Scene.fellTree(ev.zone);
+          Scene.fellTree(ev.area);
           A.fell();
           break;
         case "sell":
@@ -41,14 +41,26 @@
           break;
         }
         case "zone": {
+          if (E.activeLocation(game.s)) break;
           const z = D.zones[ev.zone];
-          Scene.setZone(ev.zone);
+          Scene.setArea(z);
           A.zone();
           UI.toast({ icon: "🗺️", title: "New terrain: " + z.name, text: z.blurb, tone: "gold" });
           break;
         }
+        case "location":
+          Scene.setArea(ev.area);
+          A.zone();
+          UI.toast({ icon: ev.area.icon, title: "Now working: " + ev.area.name, text: ev.area.blurb, tone: "gold" });
+          break;
+        case "locationUnlock": {
+          const l = D.locations.find((x) => x.id === ev.id);
+          A.unlock();
+          UI.toast({ icon: l.icon, title: "New location: " + l.name, text: l.blurb + " Pick it under Locations.", tone: "gold" });
+          break;
+        }
         case "replant":
-          Scene.setZone(0);
+          Scene.setArea(E.currentArea(game.s));
           break;
         case "research":
           A.research();
@@ -98,7 +110,7 @@
   const game = { s: loaded.state };
 
   Scene.init(canvas);
-  Scene.setZone(game.s.zone);
+  Scene.setArea(E.currentArea(game.s));
   UI.init(game);
 
   canvas.addEventListener("pointerdown", (e) => {
