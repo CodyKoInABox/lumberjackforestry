@@ -11,6 +11,7 @@ LJ.Engine = (function () {
   const REPLANT_BASE = 1e7;
   const REPLANT_GROWTH = 2.2;
   const OVERHAUL_MAX = 3;
+  const CERT_PER_REPLANT = 5;
   const SELL_FLOORS = [0, 0.8, 1, 1.2, 1.5];
   const bus = [];
   let savesLocked = false;
@@ -225,6 +226,15 @@ LJ.Engine = (function () {
     return parsed;
   }
 
+  function certification(s) {
+    return Math.min(100, s.replants * CERT_PER_REPLANT);
+  }
+
+  function certTier(s) {
+    const score = certification(s);
+    return D.certTiers.filter((t) => score >= t.min).pop();
+  }
+
   function seedMultiplier(s) {
     return 1 + 0.6 * Math.log10(1 + s.seedlings) * (s.nodes.sus4 ? 1.5 : 1);
   }
@@ -266,7 +276,7 @@ LJ.Engine = (function () {
       (1 + hydro) * (n.sus3 ? 1.2 : 1) * gm * (ev.beetle ? 0.75 : 1) * (ev.sunny ? 1.2 : 1) * season.output * wx.output * (ev.fire ? (n.sus5 ? 0.75 : 0.5) : 1);
     const millBonus = D.sawmill.reduce((acc, m) => acc + (s.mill[m.id] ? m.price : 0), 0);
     const price =
-      s.market.price * (1 + (n.mkt1 ? 0.15 : 0) + (n.mkt3 ? 0.4 : 0) + millBonus) * (ev.boom ? 1.6 : 1) * season.price;
+      s.market.price * (1 + (n.mkt1 ? 0.15 : 0) + (n.mkt3 ? 0.4 : 0) + millBonus) * (ev.boom ? 1.6 : 1) * season.price * (1 + certification(s) / 1000);
     const rates = {};
     let total = 0;
     for (const m of D.machines) {
@@ -794,6 +804,8 @@ LJ.Engine = (function () {
     normalize,
     stats,
     seedMultiplier,
+    certification,
+    certTier,
     tick,
     hit,
     sell,

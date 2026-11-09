@@ -87,6 +87,14 @@ LJ.DATA = {
     { id: "rain", name: "Rain", icon: "🌧️", output: 0.95 },
     { id: "snow", name: "Snow", icon: "🌨️", output: 0.9 }
   ],
+  // Sustainable certification: 5 points per replant, up to 100. Each point adds 0.1% sale price.
+  certTiers: [
+    { id: "none", name: "Uncertified", min: 0 },
+    { id: "bronze", name: "Bronze", min: 25 },
+    { id: "silver", name: "Silver", min: 50 },
+    { id: "gold", name: "Gold", min: 75 },
+    { id: "platinum", name: "Platinum", min: 100 }
+  ],
 
   zones: [
     {
