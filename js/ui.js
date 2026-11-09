@@ -545,9 +545,29 @@ LJ.UI = (function () {
     reconcile(el("list-research"), items);
   }
 
+  function renderBio(s) {
+    const here = D.zones[s.zone].id;
+    const list = el("bio-list");
+    list.textContent = "";
+    for (const z of D.zones) {
+      const v = s.bio[z.id] || 0;
+      const row = create("div", "bio-row" + (z.id === here ? " here" : ""));
+      row.append(create("span", "bio-name", z.name));
+      const track = create("div", "bio-track");
+      const fill = create("div", "bio-fill");
+      fill.style.width = U.clamp(v, 0, 100).toFixed(1) + "%";
+      track.appendChild(fill);
+      row.append(track, create("span", "bio-value", U.fmt(Math.round(v)) + " / 100"));
+      list.appendChild(row);
+    }
+    const v = E.biodiversity(s, s.zone);
+    setText(el("rp-bio"), U.fmt(Math.round(v)) + " / 100 · machines +" + U.fmt(Math.round(v / 2)) + "%");
+  }
+
   function renderReplant(s) {
     const can = E.canReplant(s);
     const gain = E.replantGain(s);
+    renderBio(s);
     setText(el("rp-seeds"), U.fmt(s.seedlings));
     setText(el("rp-bonus"), "+" + U.fmt(Math.round((E.seedMultiplier(s) - 1) * 100)) + "% output");
     const cert = E.certification(s);

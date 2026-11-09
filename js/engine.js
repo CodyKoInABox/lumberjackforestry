@@ -12,6 +12,8 @@ LJ.Engine = (function () {
   const REPLANT_GROWTH = 2.2;
   const OVERHAUL_MAX = 3;
   const CERT_PER_REPLANT = 5;
+  const BIO_PER_REPLANT = 15;
+  const BIO_LOSS_PER_FELL = 0.02;
   const SELL_FLOORS = [0, 0.8, 1, 1.2, 1.5];
   const bus = [];
   let savesLocked = false;
@@ -117,7 +119,8 @@ LJ.Engine = (function () {
         location: null,
         locSeen: {},
         season: 0,
-        weather: { id: "clear", left: WEATHER_LENGTH }
+        weather: { id: "clear", left: WEATHER_LENGTH },
+        bio: {}
       },
       runDefaults()
     );
@@ -186,6 +189,13 @@ LJ.Engine = (function () {
       left: U.clamp(Number(wx.left) || 0, 0, WEATHER_LENGTH)
     };
     s.season = seasonIndex(s);
+    s.bio = {};
+    if (raw.bio && typeof raw.bio === "object") {
+      for (const z of D.zones) {
+        const v = Number(raw.bio[z.id]);
+        if (Number.isFinite(v) && v > 0) s.bio[z.id] = Math.min(100, v);
+      }
+    }
     s.tool = U.clamp(Math.floor(Number(raw.tool) || 0), 0, D.tools.length - 1);
     s.zone = U.clamp(Math.floor(Number(raw.zone) || 0), 0, D.zones.length - 1);
     s.events = Array.isArray(raw.events)
@@ -273,7 +283,7 @@ LJ.Engine = (function () {
     const season = D.seasons[s.season] || D.seasons[0];
     const wx = D.weather.find((w) => w.id === s.weather.id) || D.weather[0];
     const machineMult =
-      (1 + hydro) * (n.sus3 ? 1.2 : 1) * gm * (ev.beetle ? 0.75 : 1) * (ev.sunny ? 1.2 : 1) * season.output * wx.output * (ev.fire ? (n.sus5 ? 0.75 : 0.5) : 1);
+      (1 + hydro) * (n.sus3 ? 1.2 : 1) * gm * (ev.beetle ? 0.75 : 1) * (ev.sunny ? 1.2 : 1) * season.output * wx.output * (ev.fire ? (n.sus5 ? 0.75 : 0.5) : 1) * (1 + biodiversity(s, s.zone) / 200);
     const millBonus = D.sawmill.reduce((acc, m) => acc + (s.mill[m.id] ? m.price : 0), 0);
     const price =
       s.market.price * (1 + (n.mkt1 ? 0.15 : 0) + (n.mkt3 ? 0.4 : 0) + millBonus) * (ev.boom ? 1.6 : 1) * season.price * (1 + certification(s) / 1000);
@@ -341,8 +351,14 @@ LJ.Engine = (function () {
     return { gain, crit };
   }
 
+  function biodiversity(s, zoneIdx) {
+    return s.bio[D.zones[zoneIdx].id] || 0;
+  }
+
   function fell(s) {
     const area = treeArea(s.tree);
+    const zoneId = D.zones[s.tree.zone].id;
+    s.bio[zoneId] = Math.max(0, (s.bio[zoneId] || 0) - BIO_LOSS_PER_FELL);
     s.trees++;
     s.research += area.research;
     s.researchEarned += area.research;
@@ -529,6 +545,8 @@ LJ.Engine = (function () {
   function replant(s, now) {
     if (!canReplant(s)) return 0;
     const gain = replantGain(s);
+    const zoneId = D.zones[s.zone].id;
+    s.bio[zoneId] = Math.min(100, (s.bio[zoneId] || 0) + BIO_PER_REPLANT);
     s.seedlings += gain;
     s.replants++;
     Object.assign(s, runDefaults());
@@ -806,6 +824,7 @@ LJ.Engine = (function () {
     seedMultiplier,
     certification,
     certTier,
+    biodiversity,
     tick,
     hit,
     sell,
