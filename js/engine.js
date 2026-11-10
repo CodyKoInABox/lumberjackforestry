@@ -573,8 +573,8 @@ LJ.Engine = (function () {
     return !!s.auto[key] && !!s.nodes[AUTO_NODE[key]];
   }
 
-  function sellFloorOpen(s, st) {
-    return !s.nodes.mkt5 || st.price >= s.autoSellMin;
+  function sellFloorOpen(s) {
+    return !s.nodes.mkt5 || s.market.price >= s.autoSellMin;
   }
 
   function setSellFloor(s, floor) {
@@ -601,7 +601,7 @@ LJ.Engine = (function () {
   function routeToProduction(s, st) {
     if (!prodUnlocked(s) || !(s.timber > 0)) return 0;
     LJ.Production.send(s, s.timber);
-    if (!(s.timber > 0) || !sellFloorOpen(s, st)) return 0;
+    if (!(s.timber > 0) || !sellFloorOpen(s)) return 0;
     const overflow = s.timber;
     const gain = sell(s, st, true);
     s.prod.overflow += overflow;
@@ -798,7 +798,7 @@ LJ.Engine = (function () {
       }
     }
     if (s.autoProd) routeToProduction(s, st);
-    if (autoOn(s, "sell") && s.timber > 0 && sellFloorOpen(s, st)) sell(s, st, true);
+    if (autoOn(s, "sell") && s.timber > 0 && sellFloorOpen(s)) sell(s, st, true);
     s.marketTimer += dt;
     while (s.marketTimer >= 4) {
       s.marketTimer -= 4;
@@ -830,13 +830,13 @@ LJ.Engine = (function () {
     s.playtime += secs;
     syncSeason(s);
     let cash = 0;
-    const selling = autoOn(s, "sell") && sellFloorOpen(s, st);
+    const selling = autoOn(s, "sell") && sellFloorOpen(s);
     let kept = selling ? 0 : produced;
     if (s.autoProd && prodUnlocked(s)) {
       const before = s.timber;
       addTimber(s, produced);
       cash += routeToProduction(s, st);
-      if (autoOn(s, "sell") && sellFloorOpen(s, st)) cash += sell(s, st, true);
+      if (autoOn(s, "sell") && sellFloorOpen(s)) cash += sell(s, st, true);
       kept = Math.max(0, s.timber - before);
     } else if (selling) {
       cash = produced * st.price;
