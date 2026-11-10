@@ -97,13 +97,27 @@ LJ.UI = (function () {
       const it = card._item;
       if (it && it.onClick) it.onClick();
     });
+    card.addEventListener("click", (e) => {
+      const it = card._item;
+      if (!it || !it.onInfo || e.target.closest(".card-btn")) return;
+      it.onInfo();
+    });
+    card.addEventListener("keydown", (e) => {
+      const it = card._item;
+      if (!it || !it.onInfo || e.key !== "Enter" || e.target !== card) return;
+      e.preventDefault();
+      it.onInfo();
+    });
     return card;
   }
 
   function updateCard(card, it) {
     card._item = it;
     const p = card._parts;
-    card.className = "card" + (it.state ? " " + it.state : "") + (it.header ? " is-header" : "");
+    card.className =
+      "card" + (it.state ? " " + it.state : "") + (it.header ? " is-header" : "") + (it.onInfo ? " has-info" : "");
+    if (it.onInfo) card.tabIndex = 0;
+    else card.removeAttribute("tabindex");
     if (it.header) {
       setText(p.name, it.name);
       p.icon.hidden = true;
@@ -188,12 +202,17 @@ LJ.UI = (function () {
   function renderStage(s, st) {
     const z = D.zones[s.zone];
     const next = D.zones[s.zone + 1];
-    setText(el("zone-name"), z.name);
-    setText(el("zone-sub"), z.blurb);
+    const area = E.currentArea(s);
+    setText(el("zone-name"), area.name);
+    setText(el("zone-sub"), area.blurb);
     setText(
       el("zone-next"),
-      next ? "Next terrain: " + next.name + " at " + U.fmt(next.unlock) + " run timber" : "Final terrain unlocked"
+      E.activeLocation(s)
+        ? "Forest terrain: " + z.name
+        : next ? "Next terrain: " + next.name + " at " + U.fmt(next.unlock) + " run timber" : "Final terrain unlocked"
     );
+    el("loc-btn").hidden = E.unlockedLocations(s).length === 0;
+    setText(el("season-chip"), st.season.icon + " " + st.season.name + " · " + st.weather.icon + " " + st.weather.name);
     const pct = U.clamp((s.tree.hp / s.tree.max) * 100, 0, 100);
     el("tree-bar-fill").style.width = pct.toFixed(1) + "%";
     setText(el("tree-bar-label"), "Tree " + U.fmt(Math.max(0, Math.ceil(s.tree.hp))) + " / " + U.fmt(s.tree.max));
@@ -298,6 +317,79 @@ LJ.UI = (function () {
     reconcile(el("list-tools"), items);
   }
 
+  function link(label, url) {
+    const a = create("a", "", label);
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    return a;
+  }
+
+  function creditLine(c) {
+    const p = create("p", "machine-credit");
+    p.append((c.url ? "Photo: " : "Illustration: ") + c.author + ", ");
+    p.append(c.licenceUrl ? link(c.licence, c.licenceUrl) : c.licence);
+    if (c.url) {
+      p.append(" · ");
+      p.append(link("Wikimedia Commons", c.url));
+    }
+    return p;
+  }
+
+  function sourcesLine(list) {
+    const p = create("p", "machine-sources", "Sources: ");
+    list.forEach((s, i) => {
+      if (i) p.append(", ");
+      p.append(link(s.label, s.url));
+    });
+    return p;
+  }
+
+  function openMachineInfo(m) {
+    const info = (LJ.MachineInfo && LJ.MachineInfo[m.id]) || {};
+    const wrap = create("div", "machine-info");
+    const figure = create("figure", "machine-photo");
+    const img = create("img", "machine-photo-img");
+    img.src = m.photo;
+    img.alt = m.name;
+    img.width = 240;
+    img.height = 180;
+    figure.appendChild(img);
+    if (info.credit) figure.appendChild(creditLine(info.credit));
+    wrap.appendChild(figure);
+    const rows = [
+      ["Maker", info.maker],
+      ["Model", info.model],
+      ["Type", info.type],
+      ["Typical use", info.use],
+      ["Weight", info.weight],
+      ["Engine power", info.power],
+      ["Width or capacity", info.size]
+    ];
+    const dl = create("dl", "machine-specs");
+    for (const [k, v] of rows) if (v) dl.append(create("dt", "", k), create("dd", "", v));
+    if (dl.children.length) wrap.appendChild(dl);
+    if (info.identified) wrap.appendChild(create("p", "machine-note", "The photo's file page names this model."));
+    if (info.note) wrap.appendChild(create("p", "machine-note", info.note));
+    if (info.sources && info.sources.length) wrap.appendChild(sourcesLine(info.sources));
+    openModal({ title: m.name, body: wrap, actions: [{ label: "Close", primary: true }] });
+  }
+
+  function renderCrew(c) {
+    const morale = Math.round(c.morale);
+    const tail = c.next
+      ? "Skill " + c.skill + "/" + c.max + " · " + U.fmt(Math.floor(c.xp)) + " / " + U.fmt(c.next) + " crew timber to level " + (c.skill + 1)
+      : "Skill " + c.skill + "/" + c.max + " · maxed";
+    setText(
+      el("crew-status-text"),
+      "Morale " + morale + "% · Crew output ×" + c.crewMult.toFixed(2) + " · " + tail
+    );
+    const meter = el("crew-morale-meter");
+    meter.setAttribute("aria-valuenow", String(morale));
+    meter.classList.toggle("low", c.morale < 40);
+    el("crew-morale-fill").style.width = U.clamp(c.morale, 0, 100).toFixed(1) + "%";
+  }
+
   function renderFleet(s, st) {
     const items = D.machines.map((m) => {
       if (!s.runUnlocked[m.id]) {
@@ -309,7 +401,8 @@ LJ.UI = (function () {
           desc: "Reach " + U.fmt(m.unlock) + " run timber to unlock.",
           state: "locked",
           btn: "Locked",
-          disabled: true
+          disabled: true,
+          onInfo: () => openMachineInfo(m)
         };
       }
       const owned = s.machines[m.id] || 0;
@@ -335,8 +428,33 @@ LJ.UI = (function () {
           ? () => {
               if (E.hire(s, m.id, want === "max" ? "max" : want)) refresh();
             }
-          : null
+          : null,
+        onInfo: () => openMachineInfo(m)
       };
+    });
+    const t = st.truck;
+    const truckUnlocked = s.runTimber >= t.unlock;
+    const truckAffordable = t.count < t.max && s.cash >= t.cost;
+    items.push({
+      key: "truck",
+      icon: "🚛",
+      name: "Log Truck",
+      desc: "Haul logs straight to the mill yard for a better price. Each truck adds +" + Math.round(t.step * 100) + "% to every sale.",
+      meta: truckUnlocked
+        ? "Owned " + t.count + " / " + t.max + " · sale price ×" + t.mult.toFixed(2)
+        : "Reach " + U.fmt(t.unlock) + " run timber to unlock.",
+      state: !truckUnlocked ? "locked" : t.count >= t.max ? "owned" : truckAffordable ? "can" : "cant",
+      btn: !truckUnlocked
+        ? "Locked"
+        : t.count >= t.max
+          ? "Max"
+          : "Hire · " + U.money(t.cost),
+      disabled: !truckUnlocked || !truckAffordable,
+      onClick: truckUnlocked && truckAffordable
+        ? () => {
+            if (E.hireTruck(s)) refresh();
+          }
+        : null
     });
     reconcile(el("list-fleet"), items);
   }
@@ -466,11 +584,34 @@ LJ.UI = (function () {
     reconcile(el("list-research"), items);
   }
 
+  function renderBio(s) {
+    const here = D.zones[s.zone].id;
+    const list = el("bio-list");
+    list.textContent = "";
+    for (const z of D.zones) {
+      const v = s.bio[z.id] || 0;
+      const row = create("div", "bio-row" + (z.id === here ? " here" : ""));
+      row.append(create("span", "bio-name", z.name));
+      const track = create("div", "bio-track");
+      const fill = create("div", "bio-fill");
+      fill.style.width = U.clamp(v, 0, 100).toFixed(1) + "%";
+      track.appendChild(fill);
+      row.append(track, create("span", "bio-value", U.fmt(Math.round(v)) + " / 100"));
+      list.appendChild(row);
+    }
+    const v = E.biodiversity(s, s.zone);
+    setText(el("rp-bio"), U.fmt(Math.round(v)) + " / 100 · machines +" + U.fmt(Math.round(v / 2)) + "%");
+  }
+
   function renderReplant(s) {
     const can = E.canReplant(s);
     const gain = E.replantGain(s);
+    renderBio(s);
     setText(el("rp-seeds"), U.fmt(s.seedlings));
     setText(el("rp-bonus"), "+" + U.fmt(Math.round((E.seedMultiplier(s) - 1) * 100)) + "% output");
+    const cert = E.certification(s);
+    const tier = E.certTier(s);
+    setText(el("rp-cert"), tier.name + " · " + cert + " / 100 · +" + U.fmt(cert / 10) + "% sale price");
     setText(el("rp-run"), U.fmt(s.runTimber));
     const need = E.replantRequirement(s);
     setText(el("rp-need"), U.fmt(need));
@@ -603,6 +744,7 @@ LJ.UI = (function () {
         break;
       case "fleet":
         renderBulk(s);
+        renderCrew(st.crew);
         renderFleet(s, st);
         break;
       case "upgrades":
@@ -692,6 +834,37 @@ LJ.UI = (function () {
     const focusTarget = box.querySelector("input, textarea, .btn.primary") || box.querySelector("button");
     if (focusTarget) focusTarget.focus();
     return { close, box };
+  }
+
+  function openLocations() {
+    const s = game.s;
+    const current = E.activeLocation(s);
+    const zone = D.zones[s.zone];
+    const options = [{ id: null, name: "Forest progression", icon: "🧭", blurb: "Follows the terrain your run reaches: " + zone.name + ".", tree: zone }].concat(
+      E.unlockedLocations(s).map((l) => ({ id: l.id, name: l.name, icon: l.icon, blurb: l.blurb, tree: l }))
+    );
+    const list = create("div", "loc-list");
+    const modal = openModal({ title: "Choose a location", body: list, actions: [{ label: "Close", ghost: true }] });
+    for (const o of options) {
+      const active = (current ? current.id : null) === o.id;
+      const b = create("button", "loc-opt" + (active ? " current" : ""));
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(active));
+      b.append(create("span", "loc-icon", o.icon));
+      const text = create("span", "loc-text");
+      text.append(
+        create("span", "loc-name", o.name),
+        create("span", "loc-blurb", o.blurb),
+        create("span", "loc-stats", "Tree " + U.fmt(o.tree.hp) + " · " + U.fmt(o.tree.research) + " research per tree" + (active ? " · current" : ""))
+      );
+      b.append(text);
+      b.addEventListener("click", () => {
+        E.setLocation(s, o.id);
+        refresh();
+        modal.close();
+      });
+      list.appendChild(b);
+    }
   }
 
   function showAway(away) {
@@ -860,6 +1033,7 @@ LJ.UI = (function () {
       });
     }
     el("rp-btn").addEventListener("click", openReplant);
+    el("loc-btn").addEventListener("click", openLocations);
     for (const b of el("sell-floor").querySelectorAll("[data-floor]")) {
       b.addEventListener("click", () => {
         if (E.setSellFloor(game.s, Number(b.dataset.floor))) refresh();

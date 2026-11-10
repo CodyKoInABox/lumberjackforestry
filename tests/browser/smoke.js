@@ -903,7 +903,7 @@ async function scenarioProduction(browser) {
   const built = await waitSave(page, (sv) => sv.prod && sv.prod.lines.length === 1, 9000);
   check(
     "building a line from picked stages charges the stage costs",
-    !!built && built.prod.lines[0].stages.join(",") === "saw,plane" && built.cash === 2000000 - 170000,
+    !!built && built.prod.lines[0].stages.join(",") === "saw,plane" && built.cash === 2000000 - 55000,
     "stages=" + (built && built.prod.lines[0].stages.join(",")) + " cash=" + (built && built.cash)
   );
   await page.click(".prod-line .flow-add");
@@ -1052,6 +1052,55 @@ async function scenarioAutoProduction(browser) {
   await context.close();
 }
 
+async function scenarioProductionValue(browser) {
+  const viewport = { width: 1280, height: 900 };
+  const fullChain = (stations) => ({
+    id: 1,
+    stages: ["saw", "plane", "dry", "pack"],
+    stations: [stations, stations, stations, stations],
+    done: 0,
+    earned: 0
+  });
+
+  let { context, page } = await newPage(browser, {
+    seed: seedBase({
+      replants: 1,
+      cash: 0,
+      tutorial: 99,
+      market: { price: 1, hist: [1] },
+      prod: { queue: 300, warehouses: 0, factories: 0, nextLine: 2, lines: [fullChain(12)] }
+    }),
+    viewport,
+    label: "value-prod"
+  });
+  const processed = await waitSave(page, (sv) => sv.prod && sv.prod.queue === 0 && sv.prod.processed >= 299, 30000);
+  const prodCash = processed ? processed.cash : 0;
+  check("a full-chain line processes the queued logs", !!processed, "queue=" + (processed && processed.prod.queue) + " processed=" + (processed && processed.prod.processed));
+  await context.close();
+
+  ({ context, page } = await newPage(browser, {
+    seed: seedBase({
+      replants: 1,
+      cash: 0,
+      timber: 300,
+      tutorial: 99,
+      nodes: { mkt2: true },
+      auto: { sell: true },
+      market: { price: 1, hist: [1] }
+    }),
+    viewport,
+    label: "value-raw"
+  }));
+  const raw = await waitSave(page, (sv) => sv.timber < 1 && sv.cash > 0, 9000);
+  const rawCash = raw ? raw.cash : 0;
+  check(
+    "the same 300 logs earn a clear multiple more through production than raw sales",
+    prodCash > 0 && rawCash > 0 && prodCash >= 2.5 * rawCash,
+    "production=" + prodCash.toFixed(1) + " raw=" + rawCash.toFixed(1) + " ratio=" + (rawCash ? (prodCash / rawCash).toFixed(2) : "n/a")
+  );
+  await context.close();
+}
+
 async function scenarioProductionMobile(browser) {
   for (const vp of MOBILE_VIEWPORTS) {
     const { context, page } = await newPage(browser, { seed: productionSeed(), viewport: { width: vp.width, height: vp.height }, label: "prod-" + vp.name });
@@ -1148,6 +1197,812 @@ async function scenarioToastClearance(browser) {
   await context.close();
 }
 
+async function scenarioMachineInfo(browser) {
+  const seed = seedBase({ cash: 100000, runUnlocked: { crew: true, skidder: true, feller: true }, tutorial: 99 });
+  let { context, page } = await newPage(browser, { seed, viewport: { width: 1280, height: 900 }, label: "machine-info" });
+  await sleep(300);
+  await page.click("#tab-fleet");
+
+  await page.click('#list-fleet .card[data-key="m-skidder"] .card-name');
+  const opened = await page.waitForSelector("#modal-root .machine-info", { timeout: 3000 }).then(() => true, () => false);
+  check("clicking a machine card name opens its info modal", opened);
+  const title = await text(page, "#modal-root .modal-title");
+  check("info modal names the machine", title === "HSM 805 Articulated Skidder", title);
+  const specs = await page.$eval("#modal-root .machine-specs", (d) => d.textContent);
+  check("info modal shows sourced weight and engine power", specs.includes("12,600 kg") && specs.includes("129 kW"), specs.slice(0, 160));
+  const credit = await page.$eval("#modal-root .machine-credit", (p) => p.textContent);
+  check("info modal credits the photo author and licence", credit.includes("Gabinho") && credit.includes("CC BY-SA 3.0"), credit);
+  const img = await page.$eval("#modal-root .machine-photo-img", (i) => ({ src: i.getAttribute("src"), ok: i.complete && i.naturalWidth > 0 }));
+  check("info modal photo loads from a relative path", img.ok && !/^(\/|https?:)/.test(img.src), JSON.stringify(img));
+  await sleep(400);
+  await ensureScreenshot(page, "machine-info-modal-desktop.png");
+  await page.click("#modal-root .modal-foot .btn");
+  check("info modal closes from its button", await page.$eval("#modal-root", (r) => r.hidden));
+
+  await page.click('#list-fleet .card[data-key="m-skidder"] .card-btn');
+  const bought = await waitSave(page, (sv) => (sv.machines.skidder || 0) >= 1, 4000);
+  check("the hire button still buys without opening the info modal", !!bought && bought.machines.skidder >= 1 && (await page.$eval("#modal-root", (r) => r.hidden)));
+
+  await page.click('#list-fleet .card[data-key="m-titan"] .card-name');
+  await page.waitForSelector("#modal-root .machine-info", { timeout: 3000 }).catch(() => {});
+  const lockedTitle = await text(page, "#modal-root .modal-title").catch(() => "");
+  const fictionalNote = await page.$eval("#modal-root .machine-info", (w) => w.textContent.includes("Fictional machine")).catch(() => false);
+  check("locked machines also open their info, and fictional ones say so", lockedTitle === "Vorrex Titan Fleet Unit" && fictionalNote, lockedTitle);
+  await page.keyboard.press("Escape");
+  check("Escape closes the info modal", await page.$eval("#modal-root", (r) => r.hidden));
+
+  await page.focus('#list-fleet .card[data-key="m-feller"]');
+  await page.keyboard.press("Enter");
+  await page.waitForSelector("#modal-root .machine-info", { timeout: 3000 }).catch(() => {});
+  const kbTitle = await text(page, "#modal-root .modal-title").catch(() => "");
+  check("Enter on a focused machine card opens its info", kbTitle === "John Deere 843L-II Feller-Buncher", kbTitle);
+  await page.keyboard.press("Escape");
+  await context.close();
+
+  const phone = await newPage(browser, { seed, viewport: { width: 360, height: 740 }, touch: true, label: "machine-info-360" });
+  context = phone.context;
+  page = phone.page;
+  await sleep(300);
+  await page.tap("#tab-fleet");
+  await page.tap('#list-fleet .card[data-key="m-skidder"] .card-name');
+  await page.waitForSelector("#modal-root .machine-info", { timeout: 3000 }).catch(() => {});
+  const fit = await page.evaluate(() => {
+    const m = document.querySelector("#modal-root .modal");
+    const r = m ? m.getBoundingClientRect() : null;
+    return {
+      open: !!r,
+      inside: !!r && r.left >= 0 && r.right <= window.innerWidth + 0.5,
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      closeH: (() => {
+        const b = document.querySelector("#modal-root .modal-foot .btn");
+        return b ? b.offsetHeight : 0;
+      })()
+    };
+  });
+  check("info modal opens by tap on a 360px phone", fit.open);
+  check("info modal fits the 360px width without horizontal overflow", fit.inside && fit.overflow <= 1, JSON.stringify(fit));
+  check("info modal close button is at least 44px tall", fit.closeH >= 44, "height=" + fit.closeH);
+  await sleep(400);
+  await ensureScreenshot(page, "machine-info-modal-360.png");
+  await context.close();
+}
+
+async function scenarioLateContracts(browser) {
+  const machines = { crew: 30, skidder: 20, feller: 20, grapple: 15, forwarder: 10, harvester: 5 };
+  const runUnlocked = Object.fromEntries(Object.keys(machines).map((id) => [id, true]));
+  const cases = [
+    { kind: "click", title: "Rush Felling", icon: "🪓", desc: "Land 5 taps within the window.", target: 5, pay: 75, oldMul: 40 },
+    { kind: "machines", title: "Fleet Hire", icon: "🧑‍🔧", desc: "Hire 3 machines in total.", target: 3, pay: 90, oldMul: 300 }
+  ];
+  for (const c of cases) {
+    const seed = seedBase({
+      zone: 4,
+      replants: 2,
+      tool: 5,
+      runTimber: 6e7,
+      lifetimeTimber: 6e7,
+      machines,
+      runUnlocked,
+      contract: { kind: c.kind, title: c.title, icon: c.icon, desc: c.desc, target: c.target, pay: c.pay, progress: c.target, left: 200 },
+      contractCooldown: 9999
+    });
+    const { context, page } = await newPage(browser, { seed, viewport: { width: 1280, height: 900 }, label: "late-contract-" + c.kind });
+    const sv = await waitSave(page, (x) => x.contractsDone === 1 && x.contract === null, 8000);
+    const rate = sv
+      ? await page.evaluate((raw) => {
+          const st = LJ.Engine.stats(LJ.Engine.normalize(raw, Date.now()));
+          return st.total * st.price * 60;
+        }, sv)
+      : 0;
+    const oldReward = c.target * c.oldMul * (1 + 4);
+    const reward = sv ? sv.cash : 0;
+    check(
+      "late " + c.kind + " contract pays more than one minute of income",
+      reward > rate && rate > 0,
+      "reward=" + fmtNum(reward) + " perMinute=" + fmtNum(rate)
+    );
+    check("late " + c.kind + " contract pays more than the old fixed reward", reward > oldReward, "reward=" + fmtNum(reward) + " old=" + fmtNum(oldReward));
+    await context.close();
+  }
+}
+
+function fmtNum(n) {
+  return Number(n).toExponential(3);
+}
+
+async function scenarioLocations(browser) {
+  {
+    const { context, page } = await newPage(browser, {
+      seed: seedBase({ zone: 5, runTimber: 3e8, lifetimeTimber: 1e6 }),
+      label: "loc-locked"
+    });
+    await sleep(400);
+    const hidden = await page.$eval("#loc-btn", (b) => b.hidden);
+    check("locations button stays hidden before any location unlocks", hidden === true);
+    await context.close();
+  }
+
+  const { context, page } = await newPage(browser, { seed: locationSeed({}), label: "loc-desktop" });
+  check("unlocking a location shows a toast", await waitToast(page, "New location: Alpine Larch Slope"));
+  const shown = await page.$eval("#loc-btn", (b) => !b.hidden);
+  check("locations button appears once a location unlocks", shown);
+
+  await openLocationPicker(page, false);
+  const names = await page.$$eval(".loc-opt .loc-name", (n) => n.map((x) => x.textContent.trim()));
+  check(
+    "picker lists forest progression and unlocked locations only",
+    names.length === 2 && names[0] === "Forest progression" && names[1] === "Alpine Larch Slope" && !names.some((n) => /Kauri|Cedar/.test(n)),
+    names.join(" | ")
+  );
+  const current = await page.$eval(".loc-opt.current .loc-name", (n) => n.textContent.trim());
+  check("an existing save without a location starts on forest progression", current === "Forest progression", current);
+  await ensureScreenshot(page, "locations-picker.png");
+
+  await page.click(".loc-opt:nth-child(2)");
+  const saved = await waitSave(page, (s) => s.location === "alpine");
+  check("choosing a location saves it", !!saved && saved.location === "alpine");
+  const area = await page.evaluate(() => LJ.Scene.area().id);
+  check("switching location changes the scene terrain", area === "alpine", "scene=" + area);
+  check("the zone card shows the location", (await text(page, "#zone-name")) === "Alpine Larch Slope");
+  check(
+    "switching location starts a tree sized for that location",
+    !!saved && saved.tree.loc === "alpine" && saved.tree.max >= 2e5 && saved.tree.max <= 2.8e5,
+    saved ? JSON.stringify(saved.tree) : "no save"
+  );
+
+  const before = saved;
+  await chop(page, 12);
+  const after = await waitSave(page, (s) => s.trees > before.trees, 8000);
+  const felled = after ? after.trees - before.trees : 0;
+  const gained = after ? after.researchEarned - before.researchEarned : 0;
+  check("trees fall at the chosen location", felled > 0, "felled=" + felled);
+  check("felled trees pay the location's research", felled > 0 && Math.abs(gained - felled * 8) < 0.01, "gained=" + gained + " felled=" + felled);
+
+  await openLocationPicker(page, false);
+  await page.click(".loc-opt:nth-child(1)");
+  const back = await waitSave(page, (s) => s.location === null);
+  check("forest progression option clears the location", !!back && back.location === null);
+  const areaBack = await page.evaluate(() => LJ.Scene.area().id);
+  check("scene returns to the progression terrain", areaBack === "redwood", "scene=" + areaBack);
+
+  await openLocationPicker(page, false);
+  await page.click(".loc-opt:nth-child(2)");
+  await waitSave(page, (s) => s.location === "alpine");
+  await sleep(500);
+  await page.reload({ waitUntil: "load" });
+  await sleep(600);
+  const reloaded = await page.evaluate(() => LJ.Scene.area().id);
+  check("the chosen location survives a reload", reloaded === "alpine", "scene=" + reloaded);
+  await context.close();
+
+  for (const vp of [
+    { name: "360", width: 360, height: 740 },
+    { name: "430", width: 430, height: 932 },
+    { name: "landscape-844", width: 844, height: 390 }
+  ]) {
+    const m = await newPage(browser, { seed: locationSeed({}), viewport: { width: vp.width, height: vp.height }, touch: true, label: "loc-" + vp.name });
+    await sleep(300);
+    const btnOk = await m.page.evaluate(() => {
+      const b = document.getElementById("loc-btn");
+      const r = b.getBoundingClientRect();
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return { h: b.offsetHeight, reachable: top === b || b.contains(top) };
+    });
+    check(vp.name + ": locations button is 44px and reachable", btnOk.h >= 44 && btnOk.reachable, JSON.stringify(btnOk));
+    await openLocationPicker(m.page, true);
+    const layout = await m.page.evaluate(() => {
+      const vw = document.documentElement.clientWidth;
+      const vh = window.innerHeight;
+      const modal = document.querySelector(".modal").getBoundingClientRect();
+      const opts = [...document.querySelectorAll(".loc-opt")].map((b) => b.offsetHeight);
+      const foot = [...document.querySelectorAll(".modal-foot .btn")].map((b) => b.offsetHeight);
+      return {
+        overflow: document.documentElement.scrollWidth - vw,
+        inside: modal.left >= -1 && modal.right <= vw + 1 && modal.top >= -1 && modal.bottom <= vh + 1,
+        minOpt: Math.min(...opts),
+        minFoot: Math.min(...foot)
+      };
+    });
+    check(vp.name + ": picker has no horizontal overflow and fits the viewport", layout.overflow <= 1 && layout.inside, JSON.stringify(layout));
+    check(vp.name + ": picker options and close button are at least 44px", layout.minOpt >= 44 && layout.minFoot >= 44, JSON.stringify(layout));
+    if (vp.name === "360") await ensureScreenshot(m.page, "locations-picker-360.png");
+    await m.page.tap(".loc-opt:nth-child(2)");
+    const tapped = await waitSave(m.page, (s) => s.location === "alpine", 6000);
+    check(vp.name + ": tapping a location in the picker switches it", !!tapped);
+    await m.context.close();
+  }
+}
+
+async function scenarioFullscreen(browser) {
+  const { context, page } = await newPage(browser, { seed: seedBase({}), label: "fullscreen" });
+  await sleep(300);
+  check("fullscreen button starts as Enter fullscreen", (await page.getAttribute("#btn-fullscreen", "aria-label")) === "Enter fullscreen");
+  const supported = await page.evaluate(() => LJ.Fullscreen.supported());
+  check("fullscreen is supported in desktop Chromium", supported === true);
+
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  await page.keyboard.press("KeyF");
+  const entered = await waitUntil(() => page.evaluate(() => document.fullscreenElement && document.fullscreenElement.classList.contains("app")));
+  check("F key enters fullscreen on the game container", entered);
+  if (entered) {
+    const pressed = await waitUntil(async () => (await page.getAttribute("#btn-fullscreen", "aria-pressed")) === "true");
+    check("button reports fullscreen while active", pressed);
+    await page.keyboard.press("KeyF");
+    const left = await waitUntil(() => page.evaluate(() => !document.fullscreenElement));
+    check("F key leaves fullscreen", left);
+  }
+
+  await page.click("#btn-fullscreen");
+  const viaButton = await waitUntil(() => page.evaluate(() => !!document.fullscreenElement));
+  check("the fullscreen button enters fullscreen", viaButton);
+  if (viaButton) {
+    await page.click("#btn-fullscreen");
+    const out = await waitUntil(() => page.evaluate(() => !document.fullscreenElement));
+    check("the fullscreen button leaves fullscreen", out);
+  }
+
+  await sleep(4200);
+  const save = await readSave(page);
+  check("fullscreen state is not saved", !!save && !("fullscreen" in save) && !JSON.stringify(save).includes("fullscreen"));
+  await context.close();
+
+  const fb = await newPage(browser, { seed: seedBase({}), label: "fullscreen-fallback" });
+  await sleep(300);
+  await fb.page.evaluate(() => {
+    Object.defineProperty(document, "fullscreenEnabled", { value: false, configurable: true });
+    Object.defineProperty(document, "webkitFullscreenEnabled", { value: false, configurable: true });
+  });
+  await fb.page.click("#btn-fullscreen");
+  check("unsupported browsers get a fallback message", await waitToast(fb.page, "Fullscreen unavailable"));
+  const fallbackText = await fb.page.$$eval(".toast-text", (n) => n.map((x) => x.textContent).join(" "));
+  check("the fallback explains the iPhone Home Screen option", fallbackText.includes("Home Screen"), fallbackText.slice(0, 120));
+  check("fullscreen stays off in the fallback", !(await fb.page.evaluate(() => !!document.fullscreenElement)));
+  await fb.context.close();
+
+  for (const vp of [
+    { name: "360", width: 360, height: 740 },
+    { name: "landscape-844", width: 844, height: 390 }
+  ]) {
+    const m = await newPage(browser, { seed: seedBase({ cash: 25000, timber: 300, runTimber: 60000, lifetimeTimber: 60000, tool: 2, zone: 1 }), viewport: { width: vp.width, height: vp.height }, touch: true, label: "fs-" + vp.name });
+    await sleep(300);
+    const r = await m.page.evaluate(() => {
+      const b = document.getElementById("btn-fullscreen");
+      const rect = b.getBoundingClientRect();
+      const top = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return { h: b.offsetHeight, w: b.offsetWidth, reachable: top === b };
+    });
+    check(vp.name + ": fullscreen button is 44px and reachable", r.h >= 44 && r.w >= 44 && r.reachable, JSON.stringify(r));
+    await m.page.tap("#btn-fullscreen");
+    const full = await waitUntil(() => m.page.evaluate(() => !!document.fullscreenElement));
+    if (full) {
+      await sleep(400);
+      const layout = await m.page.evaluate(() => {
+        const app = document.querySelector(".app");
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const r = app.getBoundingClientRect();
+        const controls = ["#btn-fullscreen", "#btn-help", "#btn-sound", "#sell-btn"].map((sel) => {
+          const n = document.querySelector(sel);
+          n.scrollIntoView({ block: "center" });
+          const b = n.getBoundingClientRect();
+          const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+          return { sel, reachable: !!hit && (hit === n || n.contains(hit)) };
+        });
+        return { fills: Math.round(r.width) >= vw - 1 && Math.round(r.height) >= vh - 1, overflowX: app.scrollWidth - app.clientWidth, controls };
+      });
+      check(vp.name + ": fullscreen fills the viewport with no horizontal overflow", layout.fills && layout.overflowX <= 1, JSON.stringify({ fills: layout.fills, overflowX: layout.overflowX }));
+      check(vp.name + ": fullscreen controls are reachable", layout.controls.every((c) => c.reachable), JSON.stringify(layout.controls));
+      await m.page.evaluate(() => {
+        document.querySelector(".app").scrollTop = 0;
+      });
+      await sleep(300);
+      await ensureScreenshot(m.page, "fullscreen-" + vp.name + ".png");
+      await m.page.tap("#btn-fullscreen");
+      await waitUntil(() => m.page.evaluate(() => !document.fullscreenElement));
+    } else {
+      check(vp.name + ": fullscreen could be entered on a phone-sized viewport", false, "browser refused fullscreen");
+    }
+    await m.context.close();
+  }
+}
+
+async function waitUntil(pred, timeout = 3000) {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    if (await pred()) return true;
+    await sleep(100);
+  }
+  return false;
+}
+
+const locationSeed = (overrides) =>
+  seedBase(
+    Object.assign(
+      {
+        tool: 8,
+        zone: 5,
+        runTimber: 3e8,
+        lifetimeTimber: 2.5e9,
+        cashEarned: 1e6,
+        tutorial: 99,
+        achievements: {
+          "pocket-change": true,
+          "market-maker": true,
+          "timber-baron": true,
+          "forest-mogul": true,
+          "old-growth": true,
+          "redwood-royalty": true,
+          "chainsaw-massacre": true,
+          "carbide-dreams": true,
+          "laser-focus": true,
+          "tool-shed": true
+        }
+      },
+      overrides
+    )
+  );
+
+
+async function openLocationPicker(page, touch = false) {
+  if (touch) await page.tap("#loc-btn");
+  else await page.click("#loc-btn");
+  await page.waitForSelector(".loc-opt");
+  await sleep(450);
+}
+
+async function scenarioSeasons(browser) {
+  const clear = { id: "clear", left: 9999 };
+  const cases = [
+    ["Spring", 0, clear, "🌱 Spring · 🌤️ Clear"],
+    ["Summer", 300, clear, "☀️ Summer · 🌤️ Clear"],
+    ["Winter", 900, { id: "snow", left: 9999 }, "❄️ Winter · 🌨️ Snow"]
+  ];
+  for (const [name, playtime, weather, expected] of cases) {
+    const { context, page } = await newPage(browser, {
+      seed: seedBase({ playtime, weather, machines: { crew: 10 }, runUnlocked: { crew: true } }),
+      label: "season-" + name
+    });
+    await sleep(400);
+    const chip = await text(page, "#season-chip");
+    check(name + " season chip shows season and weather", chip === expected, chip);
+    if (name === "Winter") await ensureScreenshot(page, "seasons-winter.png");
+    await context.close();
+  }
+
+  const { context: sc, page: sp } = await newPage(browser, {
+    seed: seedBase({ playtime: 0, weather: { id: "clear", left: 9999 }, machines: { crew: 10 }, runUnlocked: { crew: true } }),
+    label: "season-stats"
+  });
+  const mult = await sp.evaluate(() => {
+    const mk = (playtime, weather) =>
+      LJ.Engine.stats(
+        LJ.Engine.normalize(
+          { v: 1, playtime, weather: { id: weather, left: 9999 }, machines: { crew: 10 }, runUnlocked: { crew: true } },
+          Date.now()
+        )
+      );
+    const spring = mk(0, "clear");
+    const summer = mk(300, "clear");
+    const winter = mk(900, "snow");
+    const autumn = mk(600, "clear");
+    return {
+      spring: spring.machineMult,
+      summer: summer.machineMult,
+      winter: winter.machineMult,
+      winterPrice: winter.price,
+      autumnPrice: autumn.price
+    };
+  });
+  check("summer machines run faster than spring", mult.summer > mult.spring, JSON.stringify(mult));
+  check("winter snow slows machines below spring", mult.winter < mult.spring, JSON.stringify(mult));
+  check("winter sale prices dip below autumn", mult.winterPrice < mult.autumnPrice, JSON.stringify(mult));
+  await sc.close();
+
+  const { context: tc, page: tp } = await newPage(browser, {
+    seed: seedBase({ playtime: 299.2, weather: { id: "clear", left: 9999 } }),
+    label: "season-change"
+  });
+  check("entering a new season shows a toast", await waitToast(tp, "New season: Summer", 6000));
+  await tc.close();
+
+  const { context: wc, page: wp } = await newPage(browser, {
+    seed: seedBase({ weather: { id: "rain", left: 0.5 } }),
+    label: "weather-rotate"
+  });
+  const rotated = await waitSave(wp, (s) => s.weather && s.weather.left > 60, 8000);
+  check("weather rotates after its timer runs out", !!rotated && rotated.weather.left > 60, rotated ? JSON.stringify(rotated.weather) : "no save");
+  await wc.close();
+
+  const { context: oc, page: op } = await newPage(browser, { seed: seedBase({ playtime: 900 }), label: "season-default" });
+  const withDefaults = await waitSave(op, (s) => typeof s.season === "number" && s.weather && typeof s.weather.id === "string", 8000);
+  check("an old save without season fields gets season and weather defaults", !!withDefaults && withDefaults.season === 3, withDefaults ? "season=" + withDefaults.season : "no save");
+  await oc.close();
+
+  const { context: mc, page: mp } = await newPage(browser, {
+    seed: seedBase({ playtime: 900, weather: { id: "snow", left: 9999 }, machines: { crew: 10 }, runUnlocked: { crew: true }, cash: 5000, timber: 200 }),
+    viewport: { width: 360, height: 740 },
+    touch: true,
+    label: "season-mobile"
+  });
+  await sleep(400);
+  const mobile = await mp.evaluate(() => ({
+    overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    chip: document.getElementById("season-chip").textContent.trim()
+  }));
+  check("360px: season chip shows with no horizontal overflow", mobile.overflow <= 1 && mobile.chip.length > 0, JSON.stringify(mobile));
+  await mc.close();
+}
+
+async function scenarioForestFires(browser) {
+  const fireSeed = (overrides) =>
+    seedBase(
+      Object.assign(
+        { events: [{ id: "fire", left: 60 }], machines: { crew: 10 }, runUnlocked: { crew: true }, tutorial: 99 },
+        overrides
+      )
+    );
+  const { context, page } = await newPage(browser, { seed: fireSeed({}), label: "fire" });
+  await sleep(400);
+  const chip = await page.evaluate(() => {
+    const c = document.getElementById("event-chip");
+    return { hidden: c.hidden, text: c.textContent.trim() };
+  });
+  check("a forest fire shows on the event chip", !chip.hidden && chip.text.includes("Forest Fire"), JSON.stringify(chip));
+
+  const mult = await page.evaluate(() => {
+    const mk = (events, nodes) =>
+      LJ.Engine.stats(
+        LJ.Engine.normalize(
+          { v: 1, events, nodes, machines: { crew: 10 }, runUnlocked: { crew: true } },
+          Date.now()
+        )
+      ).machineMult;
+    return {
+      calm: mk([], {}),
+      fire: mk([{ id: "fire", left: 60 }], {}),
+      lookout: mk([{ id: "fire", left: 60 }], { sus5: true })
+    };
+  });
+  check("fire halves machine output", Math.abs(mult.fire / mult.calm - 0.5) < 1e-9, JSON.stringify(mult));
+  check("Fire Lookout softens the fire to 75%", Math.abs(mult.lookout / mult.calm - 0.75) < 1e-9, JSON.stringify(mult));
+  await ensureScreenshot(page, "fire-event.png");
+  await context.close();
+
+  const { context: rc, page: rp } = await newPage(browser, {
+    seed: seedBase({ research: 500, nodes: { sus1: true, sus2: true }, tutorial: 99 }),
+    label: "fire-research"
+  });
+  await rp.click("#tab-research");
+  await rp.click('#list-research .card[data-key="rs-sus5"] .card-btn');
+  const bought = await waitSave(rp, (s) => s.nodes && s.nodes.sus5, 6000);
+  check("Fire Lookout can be researched and saves", !!bought && bought.nodes.sus5 === true && bought.research === 100, bought ? "research=" + bought.research : "no save");
+  await rc.close();
+
+  const { context: ec, page: ep } = await newPage(browser, {
+    seed: fireSeed({ events: [{ id: "fire", left: 1.2 }] }),
+    label: "fire-ends"
+  });
+  const ended = await waitSave(ep, (s) => Array.isArray(s.events) && s.events.length === 0, 6000);
+  check("a fire burns out on its own", !!ended);
+  await ec.close();
+
+  const { context: mc, page: mp } = await newPage(browser, { seed: fireSeed({}), viewport: { width: 360, height: 740 }, touch: true, label: "fire-mobile" });
+  await sleep(400);
+  const overflow = await mp.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  check("360px: fire chip with no horizontal overflow", overflow <= 1, "overflow=" + overflow);
+  await mc.close();
+}
+
+async function scenarioCertification(browser) {
+  const certSeed = (replants, extra) =>
+    seedBase(Object.assign({ replants, tutorial: 99 }, extra || {}));
+
+  const { context, page } = await newPage(browser, { seed: certSeed(4), label: "cert-4" });
+  await sleep(300);
+  await page.click("#tab-replant");
+  await sleep(200);
+  check(
+    "4 replants is uncertified at 20 points",
+    (await text(page, "#rp-cert")) === "Uncertified · 20 / 100 · +2% sale price",
+    await text(page, "#rp-cert")
+  );
+  await context.close();
+
+  const { context: c5, page: p5 } = await newPage(browser, { seed: certSeed(5), label: "cert-5" });
+  await sleep(300);
+  await p5.click("#tab-replant");
+  await sleep(200);
+  await ensureScreenshot(p5, "certification-bronze.png");
+  check(
+    "5 replants is Bronze at 25 points",
+    (await text(p5, "#rp-cert")) === "Bronze · 25 / 100 · +2.5% sale price",
+    await text(p5, "#rp-cert")
+  );
+  await c5.close();
+
+  const { context: c20, page: p20 } = await newPage(browser, { seed: certSeed(20), label: "cert-20" });
+  await sleep(300);
+  const prices = await p20.evaluate(() => {
+    const price = (replants) =>
+      LJ.Engine.stats(LJ.Engine.normalize({ v: 1, replants, market: { price: 1, hist: [1] } }, Date.now())).price;
+    return { none: price(0), platinum: price(20) };
+  });
+  check(
+    "a full certification adds 10% to sale price",
+    Math.abs(prices.platinum / prices.none - 1.1) < 1e-9,
+    JSON.stringify(prices)
+  );
+  await c20.close();
+
+  const { context: rc, page: rp } = await newPage(browser, {
+    seed: certSeed(0, { runTimber: 1e7, lifetimeTimber: 1e7 }),
+    label: "cert-replant"
+  });
+  await sleep(300);
+  await rp.click("#tab-replant");
+  await rp.click("#rp-btn");
+  await rp.click("#modal-root .modal-foot .btn.primary");
+  const after = await waitSave(rp, (s) => s.replants === 1, 6000);
+  check("a replant adds 5 certification points", !!after && after.replants === 1, after ? "replants=" + after.replants : "no save");
+  await sleep(200);
+  check(
+    "the Replant tab shows the new certification score",
+    (await text(rp, "#rp-cert")) === "Uncertified · 5 / 100 · +0.5% sale price",
+    await text(rp, "#rp-cert")
+  );
+  await rc.close();
+
+  const { context: mc, page: mp } = await newPage(browser, {
+    seed: certSeed(20), viewport: { width: 360, height: 740 }, touch: true, label: "cert-mobile"
+  });
+  await sleep(300);
+  await mp.tap("#tab-replant");
+  await sleep(300);
+  const overflow = await mp.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  check("360px: certification row has no horizontal overflow", overflow <= 1, "overflow=" + overflow);
+  await mc.close();
+}
+
+async function scenarioBiodiversity(browser) {
+  const bioSeed = (overrides) => seedBase(Object.assign({ tutorial: 99, zone: 0, bio: { sapling: 50, pine: 20 } }, overrides || {}));
+
+  const { context, page } = await newPage(browser, { seed: bioSeed({ replants: 1 }), label: "bio-meter" });
+  await sleep(300);
+  await page.click("#tab-replant");
+  await sleep(300);
+  const rows = await page.$$eval("#bio-list .bio-row", (n) => n.map((r) => ({ name: r.querySelector(".bio-name").textContent, value: r.querySelector(".bio-value").textContent })));
+  check("the meter lists every zone", rows.length === 6, "rows=" + rows.length);
+  check("the meter shows the zone's score", rows[0].name === "Sapling Hill" && rows[0].value === "50 / 100", JSON.stringify(rows[0]));
+  check("the meter marks the current zone", (await page.$$eval("#bio-list .bio-row.here", (n) => n.length)) === 1);
+  await ensureScreenshot(page, "biodiversity-meter.png");
+  await context.close();
+
+  const ratio = await (async () => {
+    const { context: rc, page: rp } = await newPage(browser, { seed: bioSeed({}), label: "bio-ratio" });
+    await sleep(200);
+    const r = await rp.evaluate(() => {
+      const mk = (bio) =>
+        LJ.Engine.stats(LJ.Engine.normalize({ v: 1, zone: 0, bio, machines: { crew: 10 }, runUnlocked: { crew: true } }, Date.now())).machineMult;
+      return mk({ sapling: 100 }) / mk({});
+    });
+    await rc.close();
+    return r;
+  })();
+  check("a full meter in this zone adds 50% to machine output", Math.abs(ratio - 1.5) < 1e-9, "ratio=" + ratio);
+
+  const { context: rc2, page: rp2 } = await newPage(browser, {
+    seed: bioSeed({ runTimber: 1e7, lifetimeTimber: 1e7, bio: {} }),
+    label: "bio-replant"
+  });
+  await sleep(300);
+  await rp2.click("#tab-replant");
+  await rp2.click("#rp-btn");
+  await rp2.click("#modal-root .modal-foot .btn.primary");
+  const replanted = await waitSave(rp2, (s) => s.replants === 1, 6000);
+  check("a replant adds biodiversity in the zone it was done in", !!replanted && replanted.bio.taiga === 15, replanted ? JSON.stringify(replanted.bio) : "no save");
+  await rc2.close();
+
+  const { context: fc, page: fp } = await newPage(browser, {
+    seed: bioSeed({ tool: 0, bio: { sapling: 10 } }), label: "bio-fell"
+  });
+  await sleep(300);
+  await chop(fp, 40);
+  const felled = await waitSave(fp, (s) => s.trees >= 2, 8000);
+  check("felling trees costs a little biodiversity", !!felled && felled.bio.sapling < 10 && felled.bio.sapling > 0, felled ? JSON.stringify(felled.bio) + " trees=" + felled.trees : "no save");
+  await fc.close();
+
+  const { context: mc, page: mp } = await newPage(browser, {
+    seed: bioSeed({ replants: 1 }), viewport: { width: 360, height: 740 }, touch: true, label: "bio-mobile"
+  });
+  await sleep(300);
+  await mp.tap("#tab-replant");
+  await sleep(300);
+  const overflow = await mp.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const tracks = await mp.$$eval("#bio-list .bio-track", (n) => n.map((t) => t.getBoundingClientRect().width));
+  check("360px: biodiversity meter fits with no horizontal overflow", overflow <= 1 && tracks.every((w) => w > 20), "overflow=" + overflow + " tracks=" + tracks.map(Math.round).join(","));
+  await mc.close();
+}
+async function scenarioCrew(browser) {
+  const crewSeed = (overrides) =>
+    seedBase(Object.assign({ tutorial: 99, machines: { crew: 40 }, runUnlocked: { crew: true }, morale: 100 }, overrides || {}));
+
+  const eng = await (async () => {
+    const { context, page } = await newPage(browser, { seed: crewSeed({}), label: "crew-engine" });
+    await sleep(200);
+    const r = await page.evaluate(() => {
+      const E = LJ.Engine;
+      const now = Date.now();
+      const mk = (raw) => E.normalize(raw, now);
+      const crewRate = (raw) => E.stats(mk(raw)).rates.crew;
+      const base = { machines: { crew: 10 }, runUnlocked: { crew: true } };
+      const out = {};
+      out.moraleRatio = crewRate(Object.assign({}, base, { morale: 0 })) / crewRate(Object.assign({}, base, { morale: 100 }));
+      out.skillRatio = crewRate(Object.assign({}, base, { morale: 100, crewXp: 1e6 })) / crewRate(Object.assign({}, base, { morale: 100 }));
+      out.skillLevel = [0, 1e4, 1e6, 1e8].map((x) => E.crewSkillLevel(mk({ crewXp: x })));
+      const drained = mk(Object.assign({}, base, { machines: { crew: 30 }, morale: 100 }));
+      E.tick(drained, 60);
+      out.drainMorale = drained.morale;
+      const recovered = mk(Object.assign({}, base, { morale: 50 }));
+      E.tick(recovered, 60);
+      out.recoverMorale = recovered.morale;
+      const floored = mk(Object.assign({}, base, { machines: { crew: 40 }, morale: 0.5 }));
+      E.tick(floored, 60);
+      out.floorMorale = floored.morale;
+      const xp = mk(Object.assign({}, base, { morale: 100 }));
+      const rate = E.stats(xp).rates.crew;
+      E.tick(xp, 60);
+      out.xpGain = xp.crewXp;
+      out.xpExpected = rate * 60;
+      E.drain();
+      const lvl = mk(Object.assign({}, base, { morale: 100, crewXp: 9999.9 }));
+      E.tick(lvl, 60);
+      out.levelEvent = E.drain().filter((e) => e.type === "crewSkill").map((e) => e.level);
+      const rp = mk({ runTimber: 1e7, morale: 20, crewXp: 2e6, machines: { crew: 5 }, runUnlocked: { crew: true } });
+      E.replant(rp, now);
+      out.replantMorale = rp.morale;
+      out.replantXp = rp.crewXp;
+      const old = mk({ v: 1, machines: { crew: 3 } });
+      out.oldMorale = old.morale;
+      out.oldXp = old.crewXp;
+      return out;
+    });
+    await context.close();
+    return r;
+  })();
+  check("morale scales crew output down to 80% at zero morale", Math.abs(eng.moraleRatio - 0.8) < 1e-9, "ratio=" + eng.moraleRatio);
+  check("crew skill 3 adds 12% crew output", Math.abs(eng.skillRatio - 1.12) < 1e-9, "ratio=" + eng.skillRatio);
+  check("skill level counts thresholds crossed", JSON.stringify(eng.skillLevel) === "[0,1,3,5]", JSON.stringify(eng.skillLevel));
+  check("30 crews drain morale over a minute", Math.abs(eng.drainMorale - 98.2) < 1e-6, "morale=" + eng.drainMorale);
+  check("10 crews let morale recover", Math.abs(eng.recoverMorale - 51.8) < 1e-6, "morale=" + eng.recoverMorale);
+  check("morale never goes below zero", eng.floorMorale === 0, "morale=" + eng.floorMorale);
+  check("crew output adds skill XP at its real rate", Math.abs(eng.xpGain - eng.xpExpected) < 1e-6 * Math.max(1, eng.xpExpected), eng.xpGain + " vs " + eng.xpExpected);
+  check("crossing a threshold emits a skill level event", JSON.stringify(eng.levelEvent) === "[1]", JSON.stringify(eng.levelEvent));
+  check("replanting resets morale", eng.replantMorale === 100, "morale=" + eng.replantMorale);
+  check("replanting keeps skill XP", eng.replantXp === 2e6, "xp=" + eng.replantXp);
+  check("old saves start with full morale and no skill XP", eng.oldMorale === 100 && eng.oldXp === 0, eng.oldMorale + " / " + eng.oldXp);
+
+  const { context: pc, page: pp } = await newPage(browser, {
+    seed: crewSeed({ runTimber: 5e5, crewXp: 2.5e6 }), label: "crew-panel"
+  });
+  await sleep(300);
+  await pp.click("#tab-fleet");
+  await sleep(300);
+  const panel = await text(pp, "#crew-status-text");
+  check("fleet panel shows morale, output and skill", panel.includes("Morale 100%") && panel.includes("Crew output ×1.12") && panel.includes("Skill 3/5"), panel);
+  check("fleet panel shows the next skill level target", panel.includes("to level 4"), panel);
+  const meterNow = await pp.$eval("#crew-morale-meter", (m) => m.getAttribute("aria-valuenow"));
+  check("morale meter reports the current value", meterNow === "100", "aria-valuenow=" + meterNow);
+  const drained = await waitSave(pp, (s) => s.morale < 99.9, 12000);
+  check("morale drains while more than ten crews work", !!drained && drained.morale < 99.9, drained ? "morale=" + drained.morale : "no save");
+  await ensureScreenshot(pp, "crew-morale.png");
+  await pc.close();
+
+  const { context: lc, page: lp } = await newPage(browser, { seed: crewSeed({ crewXp: 9999.99, achievements: { "crew-chief": true, "crew-of-twenty": true } }), label: "crew-levelup" });
+  check("a skill level-up shows a toast", await waitToast(lp, "Crew skill level 1", 8000), "Crew skill level 1 toast");
+  await lc.close();
+
+  const { context: rc, page: rp } = await newPage(browser, {
+    seed: crewSeed({ runTimber: 1e7, lifetimeTimber: 1e7, morale: 30, crewXp: 2e6 }), label: "crew-replant"
+  });
+  await sleep(300);
+  await rp.click("#tab-replant");
+  await rp.click("#rp-btn");
+  await rp.click("#modal-root .modal-foot .btn.primary");
+  const replanted = await waitSave(rp, (s) => s.replants === 1, 6000);
+  check("replant keeps skill XP and restores morale in the save", !!replanted && replanted.morale === 100 && replanted.crewXp >= 2e6, replanted ? "morale=" + replanted.morale + " xp=" + replanted.crewXp : "no save");
+  await rc.close();
+
+  const { context: mc, page: mp } = await newPage(browser, {
+    seed: crewSeed({ runTimber: 5e5, crewXp: 2.5e6, morale: 35 }), viewport: { width: 360, height: 740 }, touch: true, label: "crew-mobile"
+  });
+  await sleep(300);
+  await mp.tap("#tab-fleet");
+  await sleep(300);
+  const overflow = await mp.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const fillW = await mp.$eval("#crew-morale-fill", (f) => f.getBoundingClientRect().width);
+  const low = await mp.$eval("#crew-morale-meter", (m) => m.classList.contains("low"));
+  check("360px: crew status fits with no horizontal overflow", overflow <= 1, "overflow=" + overflow);
+  check("low morale shows the warning bar", low && fillW > 0, "low=" + low + " width=" + fillW);
+  await mc.close();
+}
+async function scenarioTrucks(browser) {
+  const truckSeed = (overrides) =>
+    seedBase(Object.assign({ tutorial: 99, runTimber: 2e5, lifetimeTimber: 2e5, cash: 1e6, zone: 2, runUnlocked: { crew: true, skidder: true, feller: true, grapple: true, forwarder: true, "tigrix-f550": true }, machines: { crew: 10 }, achievements: { "crew-chief": true, "crew-of-twenty": true } }, overrides || {}));
+
+  const eng = await (async () => {
+    const { context, page } = await newPage(browser, { seed: truckSeed({}), label: "truck-engine" });
+    await sleep(200);
+    const r = await page.evaluate(() => {
+      const E = LJ.Engine;
+      const now = Date.now();
+      const mk = (raw) => E.normalize(raw, now);
+      const base = { runUnlocked: { crew: true }, machines: { crew: 10 }, runTimber: 2e5, cash: 1e6 };
+      const priceOf = (extra) => E.stats(mk(Object.assign({}, base, extra))).price;
+      const out = {};
+      out.price4 = priceOf({ trucks: 4 }) / priceOf({ trucks: 0 });
+      out.price12 = priceOf({ trucks: 12 }) / priceOf({ trucks: 0 });
+      out.cap = mk({ trucks: 12 }).trucks;
+      out.cost1 = E.truckCost(mk({ trucks: 1 }));
+      out.rateSame = E.stats(mk(Object.assign({}, base, { trucks: 4 }))).rates.crew === E.stats(mk(Object.assign({}, base, { trucks: 0 }))).rates.crew;
+      const bought = mk(Object.assign({}, base, { trucks: 0, cash: 1e6 }));
+      out.hireOk = E.hireTruck(bought);
+      out.cashAfter = bought.cash;
+      out.trucksAfter = bought.trucks;
+      const poor = mk(Object.assign({}, base, { trucks: 0, cash: 1000 }));
+      out.hirePoor = E.hireTruck(poor);
+      const early = mk({ runTimber: 5e4, cash: 1e6 });
+      out.hireEarly = E.hireTruck(early);
+      const full = mk(Object.assign({}, base, { trucks: 8, cash: 1e12 }));
+      out.hireFull = E.hireTruck(full);
+      E.drain();
+      const rp = mk({ runTimber: 1e7, cash: 1e6, trucks: 3, machines: { crew: 2 }, runUnlocked: { crew: true } });
+      E.replant(rp, now);
+      out.replantTrucks = rp.trucks;
+      out.oldTrucks = mk({ v: 1 }).trucks;
+      return out;
+    });
+    await context.close();
+    return r;
+  })();
+  check("each truck adds 4% to the sale price", Math.abs(eng.price4 - 1.16) < 1e-9, "ratio=" + eng.price4);
+  check("trucks cap at eight (+32%)", eng.cap === 8 && Math.abs(eng.price12 - 1.32) < 1e-9, "cap=" + eng.cap + " ratio=" + eng.price12);
+  check("truck cost grows 2.5x per truck", eng.cost1 === 125000, "cost=" + eng.cost1);
+  check("trucks never change machine output", eng.rateSame === true, "crew rate changed");
+  check("hiring a truck spends cash and adds one", eng.hireOk && eng.cashAfter === 1e6 - 5e4 && eng.trucksAfter === 1, JSON.stringify([eng.hireOk, eng.cashAfter, eng.trucksAfter]));
+  check("hiring fails without enough cash", eng.hirePoor === false, "hired with 1000 cash");
+  check("hiring fails before the unlock", eng.hireEarly === false, "hired below unlock");
+  check("hiring fails at the cap", eng.hireFull === false, "hired past cap");
+  check("replanting resets trucks", eng.replantTrucks === 0, "trucks=" + eng.replantTrucks);
+  check("old saves have no trucks", eng.oldTrucks === 0, "trucks=" + eng.oldTrucks);
+
+  const { context: pc, page: pp } = await newPage(browser, { seed: truckSeed({ trucks: 2 }), label: "truck-panel" });
+  await sleep(300);
+  await pp.click("#tab-fleet");
+  await sleep(300);
+  const meta = await pp.$eval('#list-fleet [data-key="truck"]', (c) => c.textContent);
+  check("fleet shows the truck row with owned count", meta.includes("Owned 2 / 8") && meta.includes("×1.08"), meta.slice(0, 160));
+  await pp.$eval('#list-fleet [data-key="truck"]', (n) => n.scrollIntoView({ block: "center" }));
+  await sleep(200);
+  await ensureScreenshot(pp, "log-trucks.png");
+
+  const before = await readSave(pp);
+  await pp.click('#list-fleet [data-key="truck"] button');
+  const hired = await waitSave(pp, (s) => s.trucks === 3, 6000);
+  check("hire button adds a truck and spends its cost", !!hired && hired.trucks === 3 && Math.abs(hired.cash - (1e6 - 312500)) < 1e4, hired ? "trucks=" + hired.trucks + " cash=" + hired.cash : "no save");
+  await pc.close();
+
+  const { context: mc, page: mp } = await newPage(browser, {
+    seed: truckSeed({ trucks: 8 }), viewport: { width: 360, height: 740 }, touch: true, label: "truck-mobile"
+  });
+  await sleep(300);
+  await mp.tap("#tab-fleet");
+  await sleep(300);
+  const overflow = await mp.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const label = await mp.$eval('#list-fleet [data-key="truck"] button', (b) => b.textContent.trim());
+  check("360px: truck row fits with no horizontal overflow", overflow <= 1, "overflow=" + overflow);
+  check("a maxed truck fleet shows Max", label === "Max", "label=" + label);
+  await mc.close();
+}
 (async () => {
   const browser = await chromium.launch({
     executablePath: CHROME || undefined,
@@ -1167,10 +2022,21 @@ async function scenarioToastClearance(browser) {
     ["visuals", scenarioVisuals],
     ["features", scenarioFeatures],
     ["production", scenarioProduction],
+    ["production-value", scenarioProductionValue],
     ["production-mobile", scenarioProductionMobile],
     ["sell-floor", scenarioSellFloor],
     ["auto-production", scenarioAutoProduction],
     ["tablet", scenarioTablet],
+    ["machine-info", scenarioMachineInfo],
+    ["late-contracts", scenarioLateContracts],
+    ["locations", scenarioLocations],
+    ["fullscreen", scenarioFullscreen],
+    ["seasons", scenarioSeasons],
+    ["forest-fires", scenarioForestFires],
+    ["certification", scenarioCertification],
+    ["biodiversity", scenarioBiodiversity],
+    ["crew", scenarioCrew],
+    ["trucks", scenarioTrucks],
     ["toast-clearance", scenarioToastClearance]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
