@@ -929,9 +929,28 @@ LJ.UI = (function () {
     refresh();
   }
 
+  function bindToastClearance() {
+    const bar = document.querySelector(".topbar");
+    const compact = window.matchMedia("(max-width: 600px), (max-height: 500px)");
+    if (!bar) return;
+    const sync = () => {
+      if (!compact.matches) {
+        document.documentElement.style.removeProperty("--toast-top");
+        return;
+      }
+      const below = Math.max(bar.getBoundingClientRect().bottom, 0);
+      document.documentElement.style.setProperty("--toast-top", Math.ceil(below + 8) + "px");
+    };
+    sync();
+    window.addEventListener("resize", sync);
+    window.addEventListener("scroll", sync, { passive: true });
+    if (window.ResizeObserver) new ResizeObserver(sync).observe(bar);
+  }
+
   function init(g) {
     game = g;
     bind();
+    bindToastClearance();
     LJ.ProductionUI.init(g, { toast, openModal, refresh });
     A.setOn(game.s.sound);
     applyPrefs();

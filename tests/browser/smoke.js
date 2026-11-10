@@ -1102,6 +1102,52 @@ async function scenarioTablet(browser) {
   await context.close();
 }
 
+async function scenarioToastClearance(browser) {
+  const sizes = [
+    { name: "360", width: 360, height: 740, touch: true },
+    { name: "430", width: 430, height: 932, touch: true },
+    { name: "landscape-844", width: 844, height: 390, touch: true }
+  ];
+  for (const vp of sizes) {
+    const { context, page } = await newPage(browser, { viewport: { width: vp.width, height: vp.height }, touch: vp.touch, label: "toast-" + vp.name });
+    await page.waitForTimeout(300);
+    await page.evaluate(() => {
+      for (let i = 0; i < 3; i++) LJ.UI.toast({ icon: "🏆", title: "Unlocked " + (i + 1), text: "A longer toast message that wraps onto a second line", tone: "gold" });
+    });
+    await page.waitForTimeout(500);
+    const geo = await page.evaluate(() => {
+      const ov = (a, b) => !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
+      const toasts = [...document.querySelectorAll(".toast")].map((t) => t.getBoundingClientRect());
+      const buttons = [...document.querySelectorAll(".top-actions button")].map((b) => ({ id: b.id, r: b.getBoundingClientRect() }));
+      const bar = document.querySelector(".topbar").getBoundingClientRect();
+      return {
+        count: toasts.length,
+        coveredButtons: buttons.filter((b) => toasts.some((t) => ov(t, b.r))).map((b) => b.id),
+        overTopbar: toasts.some((t) => ov(t, bar)),
+        insideViewport: toasts.every((t) => t.top >= 0 && t.bottom <= window.innerHeight),
+        buttonCount: buttons.length
+      };
+    });
+    check("toasts at " + vp.name + " leave the top-bar buttons visible", geo.buttonCount === 2 && geo.coveredButtons.length === 0, "covered=" + geo.coveredButtons.join(",") + " buttons=" + geo.buttonCount);
+    check("toasts at " + vp.name + " stay out of the top bar", !geo.overTopbar && geo.count === 3, "count=" + geo.count);
+    check("toasts at " + vp.name + " stay inside the viewport", geo.insideViewport);
+    if (vp.name === "360") await ensureScreenshot(page, "toast-clearance-360.png");
+    await page.evaluate(() => window.scrollTo(0, 400));
+    await page.waitForTimeout(200);
+    const scrolled = await page.evaluate(() => {
+      const t = document.querySelector(".toast");
+      return t ? t.getBoundingClientRect().top : null;
+    });
+    if (vp.name === "360") check("toasts stay visible after scrolling down", scrolled !== null && scrolled >= 0 && scrolled < 40, "top=" + scrolled);
+    await context.close();
+  }
+  const { context, page } = await newPage(browser, { viewport: { width: 1280, height: 900 }, label: "toast-desktop" });
+  await page.waitForTimeout(300);
+  const desktopVar = await page.evaluate(() => document.documentElement.style.getPropertyValue("--toast-top"));
+  check("desktop layout keeps the toast stack top-right (no clearance offset)", desktopVar === "");
+  await context.close();
+}
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: CHROME || undefined,
@@ -1124,7 +1170,8 @@ async function scenarioTablet(browser) {
     ["production-mobile", scenarioProductionMobile],
     ["sell-floor", scenarioSellFloor],
     ["auto-production", scenarioAutoProduction],
-    ["tablet", scenarioTablet]
+    ["tablet", scenarioTablet],
+    ["toast-clearance", scenarioToastClearance]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
   for (const [name, fn] of suites) {
