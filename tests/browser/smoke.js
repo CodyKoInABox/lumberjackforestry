@@ -1469,6 +1469,34 @@ async function waitUntil(pred, timeout = 3000) {
   return false;
 }
 
+const locationSeed = (overrides) =>
+  seedBase(
+    Object.assign(
+      {
+        tool: 8,
+        zone: 5,
+        runTimber: 3e8,
+        lifetimeTimber: 2.5e9,
+        cashEarned: 1e6,
+        tutorial: 99,
+        achievements: {
+          "pocket-change": true,
+          "market-maker": true,
+          "timber-baron": true,
+          "forest-mogul": true,
+          "old-growth": true,
+          "redwood-royalty": true,
+          "chainsaw-massacre": true,
+          "carbide-dreams": true,
+          "laser-focus": true,
+          "tool-shed": true
+        }
+      },
+      overrides
+    )
+  );
+
+
 async function openLocationPicker(page, touch = false) {
   if (touch) await page.tap("#loc-btn");
   else await page.click("#loc-btn");
