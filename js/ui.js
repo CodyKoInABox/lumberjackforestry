@@ -552,10 +552,10 @@ LJ.UI = (function () {
       b.setAttribute("aria-pressed", String(on));
     }
     setText(el("sell-floor-value"), s.autoSellMin > 0 ? "Floor ×" + s.autoSellMin.toFixed(2) : "Floor: any price");
-    const now = "Sale ×" + st.price.toFixed(2) + " · ";
+    const now = "Market ×" + s.market.price.toFixed(2) + " · ";
     let status;
     if (!E.autoOn(s, "sell")) status = "Turn on Auto-Sell to use the floor.";
-    else if (E.sellFloorOpen(s, st)) status = "Above the floor: Auto-Sell is selling.";
+    else if (E.sellFloorOpen(s)) status = "At or above the floor: Auto-Sell is selling.";
     else status = "Below the floor: Auto-Sell is holding timber.";
     setText(el("sell-floor-now"), now + status);
   }

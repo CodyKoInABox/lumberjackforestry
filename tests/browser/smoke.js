@@ -2176,6 +2176,35 @@ async function scenarioSubpathAssets(browser) {
   await context.close();
 }
 
+async function scenarioSellFloorMarket(browser) {
+  const saleAbove = seedBase({ tutorial: 99, timber: 1000, nodes: { mkt2: true, mkt3: true, mkt5: true }, auto: { sell: true }, autoSellMin: 1.5, market: { price: 1.26, hist: [1.26] } });
+  let { context, page } = await newPage(browser, { seed: saleAbove, viewport: { width: 1280, height: 900 }, label: "floor-sale-above" });
+  const startedAt = Date.now();
+  const held = await waitSave(page, (sv) => sv.savedAt > startedAt + 3500, 9000);
+  check(
+    "a sale multiplier above the floor does not sell while the market is below it",
+    !!held && Math.abs(held.timber - 1000) < 1e-6 && held.cash === 0,
+    "timber=" + (held && held.timber) + " cash=" + (held && held.cash)
+  );
+  await page.click("#tab-upgrades");
+  await sleep(300);
+  const holdText = await text(page, "#sell-floor-now");
+  const holdMarket = Number((holdText.match(/Market ×(\d+\.\d+)/) || [])[1]);
+  check("the floor status shows the market multiplier and holds", holdMarket < 1.5 && !/Sale/.test(holdText) && /holding/.test(holdText), holdText);
+  await context.close();
+
+  const atFloor = seedBase({ tutorial: 99, timber: 1000, nodes: { mkt2: true, mkt5: true }, auto: { sell: true }, autoSellMin: 1.5, market: { price: 1.5, hist: [1.5] } });
+  ({ context, page } = await newPage(browser, { seed: atFloor, viewport: { width: 1280, height: 900 }, label: "floor-market-at" }));
+  const sold = await page.waitForFunction(() => document.getElementById("res-timber").textContent.trim() === "0", null, { timeout: 3000 }).then(() => true).catch(() => false);
+  check("a market at the floor auto-sells", sold, "timber=" + (await text(page, "#res-timber")));
+  await page.click("#tab-upgrades");
+  await sleep(300);
+  const sellText = await text(page, "#sell-floor-now");
+  const sellMarket = Number((sellText.match(/Market ×(\d+\.\d+)/) || [])[1]);
+  check("the floor status shows selling at or above the floor", sellMarket >= 1.5 && /selling/.test(sellText), sellText);
+  await context.close();
+}
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: CHROME || undefined,
@@ -2212,7 +2241,8 @@ async function scenarioSubpathAssets(browser) {
     ["trucks", scenarioTrucks],
     ["toast-clearance", scenarioToastClearance],
     ["playtest-fixes", scenarioPlaytestFixes],
-    ["subpath-assets", scenarioSubpathAssets]
+    ["subpath-assets", scenarioSubpathAssets],
+    ["sell-floor-market", scenarioSellFloorMarket]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
   for (const [name, fn] of suites) {
