@@ -19,36 +19,36 @@ LJ.DATA = {
       blurb: "Hand crew limbing and bucking logs by the road."
     },
     {
-      id: "skidder", name: "Kamuta MS-40 Mini Skidder", icon: "🚜", photo: "assets/machines/skidder.jpg", rate: 3, cost: 150, growth: 1.12, unlock: 500,
-      blurb: "Compact skidder dragging bundles to the landing."
+      id: "skidder", name: "HSM 805 Articulated Skidder", icon: "🚜", photo: "assets/machines/skidder.jpg", rate: 3, cost: 150, growth: 1.12, unlock: 500,
+      blurb: "Crane skidder dragging trunk bundles to the landing."
     },
     {
-      id: "feller", name: "Tigrix F-200 Feller-Buncher", icon: "🌲", photo: "assets/machines/feller.jpg", rate: 14, cost: 1200, growth: 1.13, unlock: 5000,
-      blurb: "Tracked cutting head that fells and bunches in one swing."
+      id: "feller", name: "John Deere 843L-II Feller-Buncher", icon: "🌲", photo: "assets/machines/feller.jpg", rate: 14, cost: 1200, growth: 1.13, unlock: 5000,
+      blurb: "Wheeled cutting head that fells and bunches in one swing."
     },
     {
-      id: "grapple", name: "Kamuta GS-70 Grapple Skidder", icon: "🦬", photo: "assets/machines/grapple.jpg", rate: 22, cost: 4000, growth: 1.13, unlock: 15000,
+      id: "grapple", name: "John Deere 648L-II Grapple Skidder", icon: "🦬", photo: "assets/machines/grapple.jpg", rate: 22, cost: 4000, growth: 1.13, unlock: 15000,
       blurb: "Articulated grapple skidder hauling whole trees."
     },
     {
-      id: "forwarder", name: "Pondrix 8W Forwarder", icon: "🚛", photo: "assets/machines/forwarder.jpg", rate: 60, cost: 9000, growth: 1.14, unlock: 40000,
-      blurb: "Eight wheels, grapple crane, forty tonnes of logs."
+      id: "forwarder", name: "John Deere 1510G Forwarder", icon: "🚛", photo: "assets/machines/forwarder.jpg", rate: 60, cost: 9000, growth: 1.14, unlock: 40000,
+      blurb: "Eight wheels, a loader crane and a 15-tonne load."
     },
     {
-      id: "tigrix-f550", name: "Tigrix F-550 Track Feller", icon: "🌳", photo: "assets/machines/tigrix-f550.jpg", rate: 90, cost: 40000, growth: 1.14, unlock: 120000,
-      blurb: "Track-mounted feller for steep ground and big stems."
+      id: "tigrix-f550", name: "Tigercat 820 Track Feller-Buncher", icon: "🌳", photo: "assets/machines/tigrix-f550.jpg", rate: 90, cost: 40000, growth: 1.14, unlock: 120000,
+      blurb: "Compact tracked feller for thinning and small clearfells."
     },
     {
-      id: "harvester", name: "Stagbrook 1170 Harvester", icon: "🏗️", photo: "assets/machines/harvester.jpg", rate: 300, cost: 75000, growth: 1.15, unlock: 300000,
+      id: "harvester", name: "Komatsu 901XC Harvester", icon: "🏗️", photo: "assets/machines/harvester.jpg", rate: 300, cost: 75000, growth: 1.15, unlock: 300000,
       blurb: "Fells, delimbs and cuts to length in one cycle."
     },
     {
-      id: "pondrix-14w", name: "Pondrix 14W Heavy Forwarder", icon: "🚚", photo: "assets/machines/pondrix-14w.jpg", rate: 900, cost: 250000, growth: 1.15, unlock: 800000,
-      blurb: "Fourteen-wheel giant that never stops for lunch."
+      id: "pondrix-14w", name: "Ponsse Elephant Forwarder", icon: "🚚", photo: "assets/machines/pondrix-14w.jpg", rate: 900, cost: 250000, growth: 1.15, unlock: 800000,
+      blurb: "Eight-wheel giant hauling 18 tonnes a trip."
     },
     {
-      id: "heavy", name: "Stagbrook 1470 Heavy Harvester", icon: "🛻", photo: "assets/machines/heavy.jpg", rate: 1800, cost: 700000, growth: 1.15, unlock: 3000000,
-      blurb: "Tracked monster built for steep stands."
+      id: "heavy", name: "John Deere 1470G Harvester", icon: "🛻", photo: "assets/machines/heavy.jpg", rate: 1800, cost: 700000, growth: 1.15, unlock: 3000000,
+      blurb: "Heavy wheeled harvester for big stems and steep stands."
     },
     {
       id: "processor", name: "Pondrix Multi-Head Processor", icon: "🤖", photo: "assets/machines/processor.svg", rate: 10000, cost: 6000000, growth: 1.15, unlock: 10000000,
@@ -73,6 +73,27 @@ LJ.DATA = {
     { id: "mill-kiln", name: "Kiln Drying", icon: "🔥", cost: 40000, price: 0.25, blurb: "Kiln-dried lumber sells for a premium. +25% sale price." },
     { id: "mill-plane", name: "CNC Planer", icon: "📐", cost: 600000, price: 0.4, blurb: "Precision planing. +40% sale price." },
     { id: "mill-export", name: "Export Terminal", icon: "🚢", cost: 4000000, price: 0.6, blurb: "Ships to every continent. +60% sale price." }
+  ],
+
+  seasonLength: 300,
+  seasons: [
+    { id: "spring", name: "Spring", icon: "🌱", output: 1, price: 1, blurb: "Mild weather. Machines run at normal speed." },
+    { id: "summer", name: "Summer", icon: "☀️", output: 1.15, price: 1, blurb: "Long days. Machines run 15% faster." },
+    { id: "autumn", name: "Autumn", icon: "🍂", output: 1, price: 1.05, blurb: "Harvest demand. Sale prices up 5%." },
+    { id: "winter", name: "Winter", icon: "❄️", output: 0.95, price: 0.95, blurb: "Cold slows machines by 5% and sale prices dip 5%." }
+  ],
+  weather: [
+    { id: "clear", name: "Clear", icon: "🌤️", output: 1 },
+    { id: "rain", name: "Rain", icon: "🌧️", output: 0.95 },
+    { id: "snow", name: "Snow", icon: "🌨️", output: 0.9 }
+  ],
+  // Sustainable certification: 5 points per replant, up to 100. Each point adds 0.1% sale price.
+  certTiers: [
+    { id: "none", name: "Uncertified", min: 0 },
+    { id: "bronze", name: "Bronze", min: 25 },
+    { id: "silver", name: "Silver", min: 50 },
+    { id: "gold", name: "Gold", min: 75 },
+    { id: "platinum", name: "Platinum", min: 100 }
   ],
 
   zones: [
@@ -108,6 +129,26 @@ LJ.DATA = {
     }
   ],
 
+  // Locations sit after Redwood Coast. They unlock on lifetime timber and are picked
+  // in the Locations picker. Research per tree is about half the Redwood ratio (research / hp).
+  locations: [
+    {
+      id: "alpine", name: "Alpine Larch Slope", icon: "🏔️", unlock: 2e9, hp: 240000, research: 8, tree: "larch", size: 1.1,
+      sky: ["#7fb4e0", "#e6f2ff"], sun: "#fff5dc", far: "#8aa6b8", near: "#5d7f8e", ground: "#4a6b52", leaf: "#b9c96a", leaf2: "#8ea14e", trunk: "#5b4030",
+      blurb: "Cold slopes where larch turns gold before the snow."
+    },
+    {
+      id: "kauri", name: "Kauri Grove", icon: "🌿", unlock: 2e10, hp: 1000000, research: 30, tree: "kauri", size: 1.2,
+      sky: ["#5fb8c9", "#d9f3e6"], sun: "#fffbe0", far: "#4a8a7a", near: "#2d6b5a", ground: "#244f42", leaf: "#3f9a6a", leaf2: "#2a7455", trunk: "#8a5e3c",
+      blurb: "Warm, humid giants with resin-dark trunks."
+    },
+    {
+      id: "cedar", name: "Mist Cedar Peaks", icon: "☁️", unlock: 2e11, hp: 4000000, research: 120, tree: "cedar", size: 1.15,
+      sky: ["#b7c9d6", "#eef3f5"], sun: "#fff9ea", far: "#7d8f99", near: "#56707a", ground: "#3d5a58", leaf: "#2f6e5c", leaf2: "#1d4f44", trunk: "#4e3a2e",
+      blurb: "Misty peaks where cedars drip with moss."
+    }
+  ],
+
   research: [
     { id: "hyd1", branch: "hydraulics", name: "Hydraulic Pumps I", cost: 5, req: null, desc: "+15% machine output." },
     { id: "hyd2", branch: "hydraulics", name: "Hydraulic Pumps II", cost: 40, req: "hyd1", desc: "+25% machine output." },
@@ -138,7 +179,8 @@ LJ.DATA = {
     { id: "sus1", branch: "sustainability", name: "Replanting Program", cost: 30, req: null, desc: "+25% seedlings from Replant." },
     { id: "sus2", branch: "sustainability", name: "Soil Health", cost: 150, req: "sus1", desc: "+10% all timber income." },
     { id: "sus3", branch: "sustainability", name: "Biomass Boilers", cost: 800, req: "sus2", desc: "Burns slash for power: +20% machine output." },
-    { id: "sus4", branch: "sustainability", name: "Carbon Credits", cost: 5000, req: "sus3", desc: "Seedling bonuses are 50% stronger." }
+    { id: "sus4", branch: "sustainability", name: "Carbon Credits", cost: 5000, req: "sus3", desc: "Seedling bonuses are 50% stronger." },
+    { id: "sus5", branch: "sustainability", name: "Fire Lookout", cost: 400, req: "sus2", desc: "Forest fires cut machine output to 75% instead of 50%." }
   ],
 
   research_branches: [
@@ -155,13 +197,15 @@ LJ.DATA = {
     { id: "lucky", name: "Lucky Crew", icon: "🍀", desc: "+25% crit chance for 45s.", duration: 45, weight: 3 },
     { id: "beetle", name: "Bark Beetle Outbreak", icon: "🪲", desc: "Machines run at 75% for 60s.", duration: 60, weight: 2 },
     { id: "sunny", name: "Perfect Weather", icon: "☀️", desc: "Machines +20% for 90s.", duration: 90, weight: 2 },
+    { id: "fire", name: "Forest Fire", icon: "🔥", desc: "Fire crews hold the blaze: machines at 50% for 90s.", duration: 90, weight: 1 },
     { id: "windfall", name: "Auction Windfall", icon: "💰", desc: "Instant cash worth about a minute of output.", instant: true, weight: 1 }
   ],
 
+  // pay: seconds of current sale income, used when it beats the fixed zone reward.
   contractTemplates: [
     { kind: "deliver", title: "Pulpwood Order", icon: "📦", desc: "Deliver {amount} timber to the mill.", mult: [1, 1.2], time: 240 },
-    { kind: "click", title: "Rush Felling", icon: "🪓", desc: "Land {amount} taps within the window.", mult: [1, 1.5], time: 120 },
-    { kind: "machines", title: "Fleet Hire", icon: "🧑‍🔧", desc: "Hire {amount} machines in total.", mult: [1, 1.3], time: 300 }
+    { kind: "click", title: "Rush Felling", icon: "🪓", desc: "Land {amount} taps within the window.", mult: [1, 1.5], time: 120, pay: 75 },
+    { kind: "machines", title: "Fleet Hire", icon: "🧑‍🔧", desc: "Hire {amount} machines in total.", mult: [1, 1.3], time: 300, pay: 90 }
   ],
 
   achievements: [
@@ -175,7 +219,7 @@ LJ.DATA = {
     { id: "timber-baron", name: "Timber Baron", icon: "🎩", desc: "Produce 1M timber in lifetime.", test: (s) => s.lifetimeTimber >= 1e6 },
     { id: "forest-mogul", name: "Forest Mogul", icon: "🌍", desc: "Produce 1B timber in lifetime.", test: (s) => s.lifetimeTimber >= 1e9 },
     { id: "crew-chief", name: "Crew Chief", icon: "👷", desc: "Hire 10 Ground Crews in one run.", test: (s) => (s.machines.crew || 0) >= 10 },
-    { id: "first-skidder", name: "First Skidder", icon: "🚜", desc: "Hire a mini skidder.", test: (s) => (s.machines.skidder || 0) >= 1 },
+    { id: "first-skidder", name: "First Skidder", icon: "🚜", desc: "Hire a skidder.", test: (s) => (s.machines.skidder || 0) >= 1 },
     { id: "feller-fan", name: "Feller Fan", icon: "🌲", desc: "Hire a feller-buncher.", test: (s) => (s.machines.feller || 0) >= 1 },
     { id: "heavy-lifting", name: "Heavy Lifting", icon: "🚛", desc: "Hire a forwarder.", test: (s) => (s.machines.forwarder || 0) >= 1 },
     { id: "harvest-moon", name: "Harvest Moon", icon: "🏗️", desc: "Hire a harvester.", test: (s) => (s.machines.harvester || 0) >= 1 },

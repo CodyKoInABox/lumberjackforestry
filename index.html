@@ -63,6 +63,7 @@
 
         <div class="top-actions">
           <button class="icon-btn" id="btn-sound" type="button" aria-label="Toggle sound" aria-pressed="true">🔊</button>
+          <button class="icon-btn" id="btn-fullscreen" type="button" aria-label="Enter fullscreen" aria-pressed="false" title="Fullscreen (F)">⤢</button>
           <button class="icon-btn" id="btn-help" type="button" aria-label="Replay the tutorial" title="Replay the tutorial">?</button>
         </div>
       </header>
@@ -77,6 +78,8 @@
                 <div class="zone-name" id="zone-name">Sapling Hill</div>
                 <div class="zone-sub" id="zone-sub"></div>
                 <div class="zone-next" id="zone-next"></div>
+                <button class="btn zone-loc" id="loc-btn" type="button" hidden>Locations</button>
+                <div class="zone-next" id="season-chip"></div>
               </div>
               <div class="event-chip" id="event-chip" hidden></div>
             </div>
@@ -143,6 +146,10 @@
             </section>
 
             <section class="panel-tab" id="panel-fleet" role="tabpanel" hidden>
+              <div class="crew-status" id="crew-status" aria-live="polite">
+                <div class="crew-status-text" id="crew-status-text"></div>
+                <div class="track crew-track" role="meter" aria-label="Crew morale" aria-valuemin="0" aria-valuemax="100" id="crew-morale-meter"><div class="track-fill" id="crew-morale-fill"></div></div>
+              </div>
               <div class="bulk-row">
                 <span class="bulk-label">Hire amount</span>
                 <div class="bulk-bar" id="bulk-bar">
@@ -187,9 +194,12 @@
                 </p>
                 <div class="stat-row"><span>Seedlings</span><strong id="rp-seeds">0</strong></div>
                 <div class="stat-row"><span>Output bonus</span><strong id="rp-bonus">+0% output</strong></div>
+                <div class="stat-row"><span>Sustainable certification</span><strong id="rp-cert">Uncertified</strong></div>
                 <div class="stat-row"><span>Run timber</span><strong><span id="rp-run">0</span> / <span id="rp-need">10M</span></strong></div>
                 <div class="track"><div class="track-fill" id="rp-bar"></div></div>
                 <div class="rp-gain" id="rp-gain"></div>
+                <div class="stat-row"><span>Biodiversity here</span><strong id="rp-bio">0 / 100</strong></div>
+                <div class="bio-list" id="bio-list" aria-label="Biodiversity by zone"></div>
                 <button class="btn primary wide" id="rp-btn" type="button" disabled>Not yet</button>
               </div>
             </section>
@@ -280,7 +290,7 @@
                 <button class="btn" id="set-import" type="button">Import save</button>
                 <button class="btn danger" id="set-reset" type="button">Reset progress</button>
               </div>
-              <p class="fineprint">Timberline is an original game. Machine brands are fictional. Saves stay in your browser's local storage. Machine photos are Wikimedia Commons images under their own licences, see <a href="assets/machines/CREDITS.md">photo credits</a>.</p>
+              <p class="fineprint">Timberline is an original game. Machine names and specs come from manufacturer datasheets, except the four concept machines (processor, drone, swarm, titan), which are fictional. Saves stay in your browser's local storage. Machine photos are Wikimedia Commons images under their own licences, see <a href="assets/machines/CREDITS.md">photo credits</a>.</p>
             </section>
           </div>
         </aside>
@@ -305,12 +315,14 @@
 
     <script src="js/util.js"></script>
     <script src="js/data.js"></script>
+    <script src="js/machine-info.js"></script>
     <script src="js/production-data.js"></script>
     <script src="js/production.js"></script>
     <script src="js/engine.js"></script>
     <script src="js/audio.js"></script>
     <script src="js/scene.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/fullscreen.js"></script>
     <script src="js/production-ui.js"></script>
     <script src="js/main.js"></script>
   </body>

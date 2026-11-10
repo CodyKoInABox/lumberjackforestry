@@ -53,6 +53,15 @@ textarea {
   padding: 16px 16px 40px;
 }
 
+.app:fullscreen,
+.app:-webkit-full-screen {
+  max-width: none;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-1) 70%);
+}
+
 .card-surface {
   background: var(--glass);
   border: 1px solid var(--line);
@@ -250,6 +259,68 @@ textarea {
   color: var(--ink-soft);
 }
 
+.zone-loc {
+  pointer-events: auto;
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.loc-list {
+  display: grid;
+  gap: 8px;
+}
+
+.loc-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 12px;
+  text-align: left;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.loc-opt:hover,
+.loc-opt:focus-visible {
+  border-color: var(--mint);
+  outline: none;
+}
+
+.loc-opt.current {
+  border-color: var(--amber);
+  background: rgba(245, 184, 75, 0.1);
+}
+
+.loc-icon {
+  font-size: 24px;
+  flex: 0 0 auto;
+}
+
+.loc-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.loc-name {
+  font-weight: 800;
+}
+
+.loc-blurb,
+.loc-stats {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
 .event-chip {
   padding: 8px 12px;
   border-radius: 999px;
@@ -361,6 +432,23 @@ textarea {
   transition: width 0.3s ease;
 }
 
+.crew-status {
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.crew-status-text {
+  opacity: 0.9;
+}
+
+.crew-track {
+  margin-top: 6px;
+}
+
+.crew-track.low .track-fill {
+  background: linear-gradient(90deg, #e0823a, #f0c25a);
+}
+
 /* Stage foot */
 
 .card-icon.has-photo {
@@ -378,6 +466,73 @@ textarea {
 
 .card.locked .card-photo {
   filter: grayscale(1);
+}
+
+.card.has-info {
+  cursor: pointer;
+}
+
+.card.has-info .card-name::after {
+  content: " ⓘ";
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.card.has-info:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+.machine-info {
+  display: grid;
+  gap: 12px;
+}
+
+.machine-photo {
+  margin: 0;
+  text-align: center;
+}
+
+.machine-photo-img {
+  display: block;
+  width: 240px;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  border-radius: 12px;
+}
+
+.machine-info .machine-credit,
+.machine-info .machine-sources,
+.machine-info .machine-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.machine-specs {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.machine-specs dt {
+  color: var(--ink-soft);
+}
+
+.machine-specs dd {
+  margin: 0;
+}
+
+.machine-info a {
+  color: var(--amber);
+}
+
+.modal-foot .btn {
+  min-height: 44px;
 }
 
 .stage-foot {
@@ -777,6 +932,51 @@ textarea {
 
 .stat-row span {
   color: var(--ink-soft);
+}
+
+.bio-list {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.bio-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(60px, 0.9fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  min-height: 28px;
+}
+
+.bio-row.here .bio-name {
+  color: var(--amber);
+  font-weight: 800;
+}
+
+.bio-name,
+.bio-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bio-value {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.bio-track {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.bio-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--mint), #a6f0b9);
+  border-radius: 4px;
 }
 
 .rp-gain {

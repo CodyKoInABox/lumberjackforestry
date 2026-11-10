@@ -15,7 +15,7 @@
           A.chop(ev.crit);
           break;
         case "fell":
-          Scene.fellTree(ev.zone);
+          Scene.fellTree(ev.area);
           A.fell();
           break;
         case "sell":
@@ -41,14 +41,32 @@
           break;
         }
         case "zone": {
+          if (E.activeLocation(game.s)) break;
           const z = D.zones[ev.zone];
-          Scene.setZone(ev.zone);
+          Scene.setArea(z);
           A.zone();
           UI.toast({ icon: "🗺️", title: "New terrain: " + z.name, text: z.blurb, tone: "gold" });
           break;
         }
+        case "location":
+          Scene.setArea(ev.area);
+          A.zone();
+          UI.toast({ icon: ev.area.icon, title: "Now working: " + ev.area.name, text: ev.area.blurb, tone: "gold" });
+          break;
+        case "locationUnlock": {
+          const l = D.locations.find((x) => x.id === ev.id);
+          A.unlock();
+          UI.toast({ icon: l.icon, title: "New location: " + l.name, text: l.blurb + " Pick it under Locations.", tone: "gold" });
+          break;
+        }
+        case "season": {
+          const se = D.seasons.find((x) => x.id === ev.id);
+          A.zone();
+          UI.toast({ icon: se.icon, title: "New season: " + se.name, text: se.blurb, tone: "gold" });
+          break;
+        }
         case "replant":
-          Scene.setZone(0);
+          Scene.setArea(E.currentArea(game.s));
           break;
         case "research":
           A.research();
@@ -72,6 +90,23 @@
         case "contractFail":
           A.error();
           UI.toast({ icon: "⌛", title: "Contract expired", text: ev.title, tone: "warn" });
+          break;
+        case "crewSkill":
+          A.achievement();
+          UI.toast({
+            icon: "👷",
+            title: "Crew skill level " + ev.level,
+            text: "Ground Crews now work " + Math.round((ev.mult - 1) * 100) + "% faster. Skill is kept across replants.",
+            tone: "gold"
+          });
+          break;
+        case "truck":
+          A.buy();
+          UI.toast({
+            icon: "🚛",
+            title: "Log truck " + ev.count + " hired",
+            text: "Hauling direct to the mill yard: sale price now ×" + ev.mult.toFixed(2) + "."
+          });
           break;
         case "achievement": {
           const a = E.byId[ev.id];
@@ -98,8 +133,11 @@
   const game = { s: loaded.state };
 
   Scene.init(canvas);
-  Scene.setZone(game.s.zone);
+  Scene.setArea(E.currentArea(game.s));
   UI.init(game);
+  LJ.Fullscreen.init({
+    notify: (text) => UI.toast({ icon: "🖥️", title: "Fullscreen unavailable", text, tone: "warn" })
+  });
 
   canvas.addEventListener("pointerdown", (e) => {
     e.preventDefault();

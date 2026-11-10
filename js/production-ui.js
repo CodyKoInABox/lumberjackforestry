@@ -84,7 +84,7 @@ LJ.ProductionUI = (function () {
       const bottleneck = i === lr.bottleneck;
       step.classList.toggle("is-bottleneck", bottleneck);
       setText(step.querySelector(".flow-tag"), bottleneck ? "Bottleneck" : "");
-      setText(step.querySelector(".flow-meta"), "Stations ×" + n + " · " + U.fmt(def.rate * P.tier(s.zone) * n) + "/s");
+      setText(step.querySelector(".flow-meta"), "Stations ×" + n + " · " + U.fmt(def.rate * P.tierRate(s.zone) * n) + "/s");
       const btn = step.querySelector(".flow-add");
       const maxed = n >= D.maxStations;
       const cost = P.stationCost(line, i, s.zone);
