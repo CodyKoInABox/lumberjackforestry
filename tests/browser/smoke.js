@@ -2157,6 +2157,25 @@ async function scenarioPlaytestFixes(browser) {
   }
 }
 
+async function scenarioSubpathAssets(browser) {
+  const { context, page } = await newPage(browser, { seed: seedBase({ tutorial: 99 }), viewport: { width: 1280, height: 900 }, label: "subpath" });
+  await sleep(300);
+  const refs = await page.evaluate(() =>
+    [...document.querySelectorAll('link[rel="stylesheet"][href], script[src], img[src]')].map((e) => e.getAttribute("src") || e.getAttribute("href"))
+  );
+  const photos = await page.evaluate(() => LJ.DATA.machines.map((m) => m.photo).filter(Boolean));
+  const absolute = [...refs, ...photos].filter((r) => r.startsWith("/") || (/^[a-z][a-z0-9+.-]*:/i.test(r) && !r.startsWith("data:")));
+  check("assets use relative paths, so they resolve under a project subpath", absolute.length === 0, absolute.join(", "));
+  const outside = await page.evaluate(() => {
+    const dir = location.pathname.replace(/[^/]*$/, "");
+    return [...document.querySelectorAll('link[rel="stylesheet"][href], script[src]')]
+      .map((e) => new URL(e.getAttribute("src") || e.getAttribute("href"), location.href).pathname)
+      .filter((p) => !p.startsWith(dir));
+  });
+  check("stylesheets and scripts resolve under the page's own directory", outside.length === 0, outside.join(", "));
+  await context.close();
+}
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: CHROME || undefined,
@@ -2192,7 +2211,8 @@ async function scenarioPlaytestFixes(browser) {
     ["crew", scenarioCrew],
     ["trucks", scenarioTrucks],
     ["toast-clearance", scenarioToastClearance],
-    ["playtest-fixes", scenarioPlaytestFixes]
+    ["playtest-fixes", scenarioPlaytestFixes],
+    ["subpath-assets", scenarioSubpathAssets]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
   for (const [name, fn] of suites) {
