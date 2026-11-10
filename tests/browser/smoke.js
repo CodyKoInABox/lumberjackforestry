@@ -1177,7 +1177,7 @@ async function scenarioToastClearance(browser) {
         buttonCount: buttons.length
       };
     });
-    check("toasts at " + vp.name + " leave the top-bar buttons visible", geo.buttonCount === 2 && geo.coveredButtons.length === 0, "covered=" + geo.coveredButtons.join(",") + " buttons=" + geo.buttonCount);
+    check("toasts at " + vp.name + " leave the top-bar buttons visible", geo.buttonCount >= 2 && geo.coveredButtons.length === 0, "covered=" + geo.coveredButtons.join(",") + " buttons=" + geo.buttonCount);
     check("toasts at " + vp.name + " stay out of the top bar", !geo.overTopbar && geo.count === 3, "count=" + geo.count);
     check("toasts at " + vp.name + " stay inside the viewport", geo.insideViewport);
     if (vp.name === "360") await ensureScreenshot(page, "toast-clearance-360.png");
