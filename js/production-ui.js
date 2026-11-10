@@ -192,7 +192,7 @@ LJ.ProductionUI = (function () {
     for (const [id, frac] of Object.entries(sends)) {
       $(id).addEventListener("click", () => {
         const s = ctx.state();
-        P.send(s, frac >= 1 ? s.timber : Math.floor(s.timber * frac));
+        P.send(s, frac >= 1 ? s.timber : Math.max(1, Math.floor(s.timber * frac)));
         ctx.refresh();
       });
     }

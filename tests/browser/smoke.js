@@ -1957,6 +1957,225 @@ async function scenarioTrucks(browser) {
   check("a maxed truck fleet shows Max", label === "Max", "label=" + label);
   await mc.close();
 }
+
+async function scenarioToastClearance(browser) {
+  const sizes = [
+    { name: "360", width: 360, height: 740, touch: true },
+    { name: "430", width: 430, height: 932, touch: true },
+    { name: "landscape-844", width: 844, height: 390, touch: true }
+  ];
+  const fire = (page) =>
+    page.evaluate(() => {
+      for (let i = 0; i < 3; i++) LJ.UI.toast({ icon: "🏆", title: "Unlocked " + (i + 1), text: "A longer toast message that wraps onto a second line", tone: "gold" });
+    });
+  const geometry = (page) =>
+    page.evaluate(() => {
+      const ov = (a, b) => !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
+      const toasts = [...document.querySelectorAll(".toast")].map((t) => t.getBoundingClientRect());
+      const buttons = [...document.querySelectorAll(".top-actions button")].map((b) => ({ id: b.id, r: b.getBoundingClientRect() }));
+      const bar = document.querySelector(".topbar").getBoundingClientRect();
+      const tabs = document.querySelector(".tabs").getBoundingClientRect();
+      return {
+        count: toasts.length,
+        coveredButtons: buttons.filter((b) => toasts.some((t) => ov(t, b.r))).map((b) => b.id),
+        buttonCount: buttons.length,
+        overTopbar: toasts.some((t) => ov(t, bar)),
+        overTabs: toasts.some((t) => ov(t, tabs)),
+        insideViewport: toasts.every((t) => t.top >= 0 && t.bottom <= window.innerHeight)
+      };
+    });
+  for (const vp of sizes) {
+    const { context, page } = await newPage(browser, { seed: seedBase({ tutorial: 99 }), viewport: { width: vp.width, height: vp.height }, touch: vp.touch, label: "toast-" + vp.name });
+    await page.waitForTimeout(300);
+    await fire(page);
+    await page.waitForTimeout(400);
+    const top = await geometry(page);
+    check("toasts at " + vp.name + " show one at a time", top.count === 1, "count=" + top.count);
+    check("toasts at " + vp.name + " leave the top-bar buttons visible", top.buttonCount >= 2 && top.coveredButtons.length === 0, "covered=" + top.coveredButtons.join(",") + " buttons=" + top.buttonCount);
+    check("toasts at " + vp.name + " stay out of the top bar", !top.overTopbar);
+    check("toasts at " + vp.name + " stay inside the viewport", top.insideViewport);
+    if (vp.name === "360") await ensureScreenshot(page, "toast-clearance-360.png");
+    await page.evaluate(() => window.scrollTo(0, document.querySelector(".tabs").getBoundingClientRect().top + window.scrollY - 8));
+    await page.waitForTimeout(250);
+    await fire(page);
+    await page.waitForTimeout(300);
+    const scrolled = await geometry(page);
+    check("toasts at " + vp.name + " stay off the tab strip after scrolling to the panel", !scrolled.overTabs && scrolled.count === 1, "overTabs=" + scrolled.overTabs + " count=" + scrolled.count);
+    check("toasts at " + vp.name + " stay inside the viewport after scrolling", scrolled.insideViewport);
+    await context.close();
+  }
+  const { context, page } = await newPage(browser, { seed: seedBase({ tutorial: 99 }), viewport: { width: 1280, height: 900 }, label: "toast-desktop" });
+  await page.waitForTimeout(300);
+  await fire(page);
+  await page.waitForTimeout(300);
+  const desktop = await page.evaluate(() => ({ count: document.querySelectorAll(".toast").length, variable: document.documentElement.style.getPropertyValue("--toast-top") }));
+  check("desktop keeps the three-toast stack and no clearance offset", desktop.count === 3 && desktop.variable === "", JSON.stringify(desktop));
+  await context.close();
+}
+
+async function scenarioPlaytestFixes(browser) {
+  const tabViewports = [
+    { name: "1280", width: 1280, height: 800, touch: false },
+    { name: "1024", width: 1024, height: 768, touch: false },
+    { name: "360", width: 360, height: 740, touch: true },
+    { name: "430", width: 430, height: 932, touch: true },
+    { name: "844-landscape", width: 844, height: 390, touch: true }
+  ];
+  for (const vp of tabViewports) {
+    const { context, page } = await newPage(browser, { seed: seedBase({ replants: 1, tutorial: 99 }), viewport: { width: vp.width, height: vp.height }, touch: vp.touch, label: "tabs-" + vp.name });
+    await sleep(300);
+    const strip = await page.evaluate(() => {
+      const s = document.querySelector(".tabs").getBoundingClientRect();
+      const tabs = [...document.querySelectorAll(".tabs .tab")].filter((t) => !t.hidden);
+      const clipped = tabs.filter((t) => { const r = t.getBoundingClientRect(); return r.left < s.left - 1 || r.right > s.right + 1; }).map((t) => t.textContent.trim());
+      return { total: tabs.length, clipped };
+    });
+    check("tabs at " + vp.name + " are all fully visible", strip.total === 8 && strip.clipped.length === 0, "total=" + strip.total + " clipped=" + strip.clipped.join(","));
+    await page.click("#tab-settings");
+    await sleep(150);
+    for (const id of ["set-export", "set-import", "set-reset"]) {
+      let opened = false;
+      try {
+        await page.click("#" + id, { timeout: 2000 });
+        await sleep(150);
+        opened = !(await page.$eval("#modal-root", (m) => m.hidden));
+        await page.keyboard.press("Escape");
+        await sleep(120);
+      } catch (e) {
+        opened = false;
+      }
+      check("settings " + id + " is reachable and opens its dialog at " + vp.name, opened);
+    }
+    let soundToggled = false;
+    try {
+      const before = await page.$eval("#set-sound", (b) => b.getAttribute("aria-pressed"));
+      await page.click("#set-sound", { timeout: 2000 });
+      const after = await page.$eval("#set-sound", (b) => b.getAttribute("aria-pressed"));
+      soundToggled = before !== after;
+      await page.click("#set-sound", { timeout: 2000 }).catch(() => {});
+    } catch (e) {
+      soundToggled = false;
+    }
+    check("settings sound toggle is reachable at " + vp.name, soundToggled);
+    if (vp.name === "1280") await ensureScreenshot(page, "playtest-tabs-1280.png");
+    await context.close();
+  }
+
+  for (const vp of [
+    { name: "1280", width: 1280, height: 900, touch: false },
+    { name: "1024", width: 1024, height: 768, touch: false },
+    { name: "360", width: 360, height: 740, touch: true },
+    { name: "844-landscape", width: 844, height: 390, touch: true }
+  ]) {
+    const { context, page } = await newPage(browser, { seed: seedBase({ replants: 1, cash: 1e9, tutorial: 99 }), viewport: { width: vp.width, height: vp.height }, touch: vp.touch, label: "flow-" + vp.name });
+    await sleep(300);
+    await page.click("#tab-production");
+    for (const st of ["saw", "plane", "dry", "pack"]) await page.click('#pb-chips [data-stage="' + st + '"]');
+    await page.click("#pb-build");
+    await page.waitForFunction(() => document.querySelectorAll(".flow-step").length === 4, null, { timeout: 4000 });
+    const geo = await page.evaluate(() => {
+      const panel = document.querySelector(".panel").getBoundingClientRect();
+      const body = document.querySelector(".tab-body");
+      const steps = [...document.querySelectorAll(".flow-step")];
+      const outside = steps.filter((s) => { const r = s.getBoundingClientRect(); return r.left < panel.left - 1 || r.right > panel.right + 1; }).length;
+      const adds = [...document.querySelectorAll(".flow-add")].filter((b) => { const r = b.getBoundingClientRect(); return r.left < panel.left - 1 || r.right > panel.right + 1; }).length;
+      return { steps: steps.length, outside, adds, bodyOverflow: body.scrollWidth - body.clientWidth };
+    });
+    check("production line at " + vp.name + " shows all four stages", geo.steps === 4, "steps=" + geo.steps);
+    check("production stages at " + vp.name + " stay inside the panel", geo.outside === 0 && geo.adds === 0, "outside=" + geo.outside + " addsOutside=" + geo.adds);
+    check("production tab body at " + vp.name + " has no sideways overflow", geo.bodyOverflow <= 1, "overflow=" + geo.bodyOverflow);
+    if (vp.name === "1280") await ensureScreenshot(page, "playtest-flow-1280.png");
+    await context.close();
+  }
+
+  {
+    const { context, page } = await newPage(browser, { seed: seedBase({ tutorial: 99, machines: { crew: 25 }, runUnlocked: { crew: true }, morale: 100, nodes: { crw1: true } }), viewport: { width: 1280, height: 900 }, label: "fleet-crew-boost" });
+    await sleep(300);
+    await page.click("#tab-fleet");
+    await sleep(150);
+    const meta = await page.$eval('#list-fleet [data-key="m-crew"]', (el) => el.textContent);
+    const m = meta.match(/Owned ([\d.]+) · ([\d.]+)\/s each · ([\d.]+)\/s total/);
+    const each = m ? Number(m[2]) : NaN;
+    const total = m ? Number(m[3]) : NaN;
+    check("fleet per-unit rate includes the Crew Training boost", m && Math.abs(each * 25 - total) <= 0.5, meta.slice(0, 120));
+    await context.close();
+  }
+
+  {
+    const { context, page } = await newPage(browser, { seed: seedBase({ replants: 1, seedlings: 1, tutorial: 99 }), viewport: { width: 1280, height: 800 }, label: "replant-copy" });
+    await sleep(300);
+    await page.click("#tab-replant");
+    await sleep(150);
+    const copy = await page.evaluate(() => document.getElementById("panel-replant").innerText);
+    check("replant copy no longer claims a flat +10% per seedling", !/\+10%/.test(copy), copy.slice(0, 90));
+    check("replant copy describes diminishing returns", /diminishing returns/i.test(copy), copy.slice(0, 90));
+    const bonus = await text(page, "#rp-bonus");
+    check("replant bonus for one seedling still reads +18% output", bonus === "+18% output", bonus);
+    await context.close();
+  }
+
+  {
+    const { context, page } = await newPage(browser, { seed: seedBase({ tutorial: 99, timber: 0, replants: 0 }), viewport: { width: 1280, height: 800 }, label: "space-focus" });
+    await sleep(300);
+    await page.focus("#tab-fleet");
+    await page.keyboard.press("Space");
+    await sleep(150);
+    const chopped = await text(page, "#res-timber");
+    const fleetOpen = !(await page.$eval("#panel-fleet", (p) => p.hidden));
+    check("Space chops even when a tab button has focus", chopped !== "0", "timber=" + chopped);
+    check("Space does not activate the focused tab", !fleetOpen);
+    await context.close();
+  }
+
+  for (const [timber, expectQueue] of [[2, 1], [3, 1]]) {
+    const { context, page } = await newPage(browser, { seed: seedBase({ replants: 1, timber, tutorial: 99 }), viewport: { width: 1280, height: 900 }, label: "send-small-" + timber });
+    await sleep(300);
+    await page.click("#tab-production");
+    await page.click("#pr-send-quarter");
+    await sleep(150);
+    const quarter = await text(page, "#pr-queue");
+    check("Send 1/4 with " + timber + " timber sends at least one", quarter.startsWith(expectQueue + " /"), quarter);
+    await context.close();
+  }
+  {
+    const { context, page } = await newPage(browser, { seed: seedBase({ replants: 1, timber: 3, tutorial: 99 }), viewport: { width: 1280, height: 900 }, label: "send-half-3" });
+    await sleep(300);
+    await page.click("#tab-production");
+    await page.click("#pr-send-half");
+    await sleep(150);
+    const half = await text(page, "#pr-queue");
+    check("Send 1/2 with 3 timber sends at least one", half.startsWith("1 /"), half);
+    await context.close();
+  }
+
+  {
+    const { context, page } = await newPage(browser, { seed: seedBase({ tutorial: 99, market: { price: 1.37, hist: [1.37] }, nodes: { mkt3: true } }), viewport: { width: 1280, height: 800 }, label: "market-label" });
+    await sleep(300);
+    const label = await text(page, "#rate-cash");
+    check("Market label matches the raw market price on the sparkline", label === "Market ×1.37", label);
+    await context.close();
+  }
+}
+
+async function scenarioSubpathAssets(browser) {
+  const { context, page } = await newPage(browser, { seed: seedBase({ tutorial: 99 }), viewport: { width: 1280, height: 900 }, label: "subpath" });
+  await sleep(300);
+  const refs = await page.evaluate(() =>
+    [...document.querySelectorAll('link[rel="stylesheet"][href], script[src], img[src]')].map((e) => e.getAttribute("src") || e.getAttribute("href"))
+  );
+  const photos = await page.evaluate(() => LJ.DATA.machines.map((m) => m.photo).filter(Boolean));
+  const absolute = [...refs, ...photos].filter((r) => r.startsWith("/") || (/^[a-z][a-z0-9+.-]*:/i.test(r) && !r.startsWith("data:")));
+  check("assets use relative paths, so they resolve under a project subpath", absolute.length === 0, absolute.join(", "));
+  const outside = await page.evaluate(() => {
+    const dir = location.pathname.replace(/[^/]*$/, "");
+    return [...document.querySelectorAll('link[rel="stylesheet"][href], script[src]')]
+      .map((e) => new URL(e.getAttribute("src") || e.getAttribute("href"), location.href).pathname)
+      .filter((p) => !p.startsWith(dir));
+  });
+  check("stylesheets and scripts resolve under the page's own directory", outside.length === 0, outside.join(", "));
+  await context.close();
+}
+
 (async () => {
   const browser = await chromium.launch({
     executablePath: CHROME || undefined,
@@ -1990,7 +2209,10 @@ async function scenarioTrucks(browser) {
     ["certification", scenarioCertification],
     ["biodiversity", scenarioBiodiversity],
     ["crew", scenarioCrew],
-    ["trucks", scenarioTrucks]
+    ["trucks", scenarioTrucks],
+    ["toast-clearance", scenarioToastClearance],
+    ["playtest-fixes", scenarioPlaytestFixes],
+    ["subpath-assets", scenarioSubpathAssets]
   ];
   const only = process.env.ONLY ? process.env.ONLY.split(",") : null;
   for (const [name, fn] of suites) {

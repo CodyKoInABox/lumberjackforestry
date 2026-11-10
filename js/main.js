@@ -156,9 +156,10 @@
   });
 
   let spaceHeld = false;
+  const typingTarget = (t) => t.isContentEditable || t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT";
   document.addEventListener("keydown", (e) => {
     if (e.code !== "Space") return;
-    if (e.target !== document.body && e.target !== canvas) return;
+    if (typingTarget(e.target)) return;
     if (!document.getElementById("modal-root").hidden) return;
     e.preventDefault();
     if (e.repeat || spaceHeld) return;

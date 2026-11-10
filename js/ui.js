@@ -190,7 +190,7 @@ LJ.UI = (function () {
     setText(el("res-timber"), U.fmt(s.timber));
     setText(el("rate-timber"), "+" + U.fmt(st.total) + "/s");
     setText(el("res-cash"), U.money(s.cash));
-    setText(el("rate-cash"), "Market ×" + st.price.toFixed(2));
+    setText(el("rate-cash"), "Market ×" + s.market.price.toFixed(2));
     setText(el("res-research"), U.fmt(Math.floor(s.research)));
     const seeds = el("res-seeds-chip");
     seeds.hidden = !(s.seedlings > 0);
@@ -407,7 +407,8 @@ LJ.UI = (function () {
       }
       const owned = s.machines[m.id] || 0;
       const ov = s.overhauls[m.id] || 0;
-      const each = m.rate * Math.pow(2, ov) * st.machineMult;
+      const crewBoost = m.id === "crew" ? (s.nodes.crw1 ? 1.2 : 1) * st.crew.crewMult : 1;
+      const each = m.rate * crewBoost * Math.pow(2, ov) * st.machineMult;
       const want = s.bulk;
       const max = E.maxAffordable(s, m);
       const n = want === "max" ? Math.max(1, max) : want;
@@ -551,7 +552,7 @@ LJ.UI = (function () {
       b.setAttribute("aria-pressed", String(on));
     }
     setText(el("sell-floor-value"), s.autoSellMin > 0 ? "Floor ×" + s.autoSellMin.toFixed(2) : "Floor: any price");
-    const now = "Market ×" + st.price.toFixed(2) + " · ";
+    const now = "Sale ×" + st.price.toFixed(2) + " · ";
     let status;
     if (!E.autoOn(s, "sell")) status = "Turn on Auto-Sell to use the floor.";
     else if (E.sellFloorOpen(s, st)) status = "Above the floor: Auto-Sell is selling.";
@@ -777,7 +778,8 @@ LJ.UI = (function () {
     if (opts.text) body.append(create("div", "toast-text", opts.text));
     t.appendChild(body);
     box.appendChild(t);
-    while (box.children.length > 3) box.firstElementChild.remove();
+    const max = isCompact() ? TOAST_MAX.compact : TOAST_MAX.wide;
+    while (box.children.length > max) box.firstElementChild.remove();
     setTimeout(() => {
       t.classList.add("out");
       setTimeout(() => t.remove(), 400);
@@ -1103,9 +1105,41 @@ LJ.UI = (function () {
     refresh();
   }
 
+  const COMPACT_QUERY = "(max-width: 600px), (max-height: 500px)";
+  const TOAST_MAX = { wide: 3, compact: 1 };
+
+  function isCompact() {
+    return window.matchMedia(COMPACT_QUERY).matches;
+  }
+
+  function bindToastClearance() {
+    const bar = document.querySelector(".topbar");
+    const box = el("toasts");
+    if (!bar) return;
+    const sync = () => {
+      if (!isCompact()) {
+        document.documentElement.style.removeProperty("--toast-top");
+        box.removeAttribute("data-anchor");
+        return;
+      }
+      const bottom = bar.getBoundingClientRect().bottom;
+      if (bottom > 0) {
+        document.documentElement.style.setProperty("--toast-top", Math.ceil(bottom + 8) + "px");
+        box.removeAttribute("data-anchor");
+      } else {
+        box.setAttribute("data-anchor", "bottom");
+      }
+    };
+    sync();
+    window.addEventListener("resize", sync);
+    window.addEventListener("scroll", sync, { passive: true });
+    if (window.ResizeObserver) new ResizeObserver(sync).observe(bar);
+  }
+
   function init(g) {
     game = g;
     bind();
+    bindToastClearance();
     LJ.ProductionUI.init(g, { toast, openModal, refresh });
     A.setOn(game.s.sound);
     applyPrefs();
